@@ -30,14 +30,15 @@ Legend:
 
 | Symbol | Spec coverage | Implementation |
 | ------ | ------------- | -------------- |
-| ✅ | Established (matches the three sources or has been verified independently) | Implemented and exercised by tests |
+| ✅ | Established (verified through implementation and observation against the pinned CLI version) | Implemented and exercised by tests |
+| 🟢 | Drafted (essentially complete from public sources; awaits implementation-driven verification) | — |
 | 🟡 | Skeleton (purpose, signature, headline semantics) | Partial implementation |
 | 🔴 | Not started | Not started |
 | ❌ | Deferred to a later milestone | Not in scope for the current milestone |
 
 | Tool | Spec | Implementation | Notes |
 | ---- | ---- | -------------- | ----- |
-| [Read](./read.md)         | 🟡 | 🔴 | Image / PDF / notebook handling is a deliberate open question. |
+| [Read](./read.md)         | 🟢 | 🔴 | Image returned as MCP `image` content; PDF transport details flagged for observation. |
 | [Write](./write.md)       | 🟡 | 🔴 | Read-before-overwrite semantics is the central rule. |
 | [Edit](./edit.md)         | 🟡 | 🔴 | Three pre-checks (read-before-edit, exact match, uniqueness) are non-negotiable. |
 | [NotebookEdit](./notebookedit.md) | 🟡 | ❌ | Deferred. Out of scope for the initial milestones; spec retained so the gap is visible. |
@@ -53,17 +54,18 @@ Each file under this directory uses the same structure:
 2. **Signature** — the JSON schema this MCP server intends to expose. Where the upstream signature is unpublished, the schema is reconstructed from the prompt-level descriptions in the Piebald-AI snapshot and cross-checked against the independent reference.
 3. **Semantics** — the observable behaviour the tool must implement. Each bullet that pins down a non-trivial behaviour cites which source(s) it comes from.
 4. **Edge cases and constraints** — boundary inputs, defaults, and explicit limits.
-5. **Error behaviour** — what the tool returns when something fails. Marked **TBD** when no primary source pins down the format; will be filled in during implementation.
+5. **Error and notice behaviour** — what the tool returns when something fails, and the byte-exact text of the notices it emits in well-defined non-error situations.
 6. **Permissions and security** — what the upstream tool requires from a permission system, and how this sandbox-agnostic MCP server relates to it.
 7. **Implementation status** — current state, mirroring the matrix above.
-8. **Known gaps** — places where this server intentionally diverges from the upstream tool or defers a behaviour.
-9. **Source notes** — the specific official-doc URLs and Piebald-AI template files this spec was reconciled against.
+8. **Known gaps** — places where the spec is still open and the implementation pull request will close them, either by choosing a behaviour or by reporting observed behaviour.
+9. **Known limitations** — behaviours of the upstream built-in that this server cannot reproduce, with the reason.
+10. **Source notes** — the specific official-doc URLs and Piebald-AI template files this spec was reconciled against.
 
 ## Refresh policy
 
 The Claude Code CLI version pinned at the top of this README is the version whose published behaviour this spec attempts to mirror. When a new CLI release introduces a relevant change to a built-in tool, the spec is refreshed in two steps:
 
 1. Bump the **Target** table and update **Sources** with the new snapshot pins.
-2. Walk each tool file, mark any behaviour that has changed, and either align the implementation or record the divergence under **Known gaps**.
+2. Walk each tool file, mark any behaviour that has changed, and either align the implementation or record the divergence under **Known gaps** or **Known limitations**.
 
 Spec refreshes happen in their own pull requests and are explicitly distinct from implementation pull requests, so the audit trail stays clean.
