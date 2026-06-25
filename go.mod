@@ -4,7 +4,10 @@ go 1.25.0
 
 toolchain go1.26.4
 
-require github.com/modelcontextprotocol/go-sdk v1.6.1
+require (
+	github.com/gabriel-vasile/mimetype v1.4.13
+	github.com/modelcontextprotocol/go-sdk v1.6.1
+)
 
 require (
 	github.com/google/jsonschema-go v0.4.3 // indirect

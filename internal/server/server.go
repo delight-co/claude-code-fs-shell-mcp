@@ -8,6 +8,8 @@ import (
 	"net/http"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/delight-co/claude-code-fs-shell-mcp/internal/tools"
 )
 
 // implementationName is the name reported in the MCP initialise handshake.
@@ -32,6 +34,8 @@ func New(logger *slog.Logger) (http.Handler, error) {
 		Name:    implementationName,
 		Version: Version,
 	}, nil)
+
+	tools.RegisterRead(mcpServer, tools.DefaultReadConfig(), logger)
 
 	handler := mcp.NewStreamableHTTPHandler(
 		func(*http.Request) *mcp.Server { return mcpServer },
