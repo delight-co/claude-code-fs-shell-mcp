@@ -1,0 +1,93 @@
+version: 2
+
+project_name: claude-code-fs-shell-mcp
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: claude-code-fs-shell-mcp
+    main: ./cmd/claude-code-fs-shell-mcp
+    binary: claude-code-fs-shell-mcp
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/delight-co/claude-code-fs-shell-mcp/internal/server.Version={{ .Version }}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: claude-code-fs-shell-mcp
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - SECURITY.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+sboms:
+  - id: archive
+    artifacts: archive
+    documents:
+      - "${artifact}.spdx.json"
+
+signs:
+  - id: checksum
+    cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - --yes
+    artifacts: checksum
+    output: true
+
+dockers_v2:
+  - id: image
+    image_templates:
+      - "ghcr.io/delight-co/claude-code-fs-shell-mcp:{{ .Tag }}"
+      - "ghcr.io/delight-co/claude-code-fs-shell-mcp:v{{ .Major }}"
+      - "ghcr.io/delight-co/claude-code-fs-shell-mcp:v{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/delight-co/claude-code-fs-shell-mcp:latest"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.description: "Claude Code CLI-compatible filesystem and shell tools over MCP"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.source: "https://github.com/delight-co/claude-code-fs-shell-mcp"
+      org.opencontainers.image.licenses: "Apache-2.0"
+
+docker_signs:
+  - id: images
+    cmd: cosign
+    artifacts: images
+    args:
+      - sign
+      - "${artifact}"
+      - --yes
+    output: true
+
+changelog:
+  use: github-native
+
+release:
+  draft: false
+  prerelease: auto
+  mode: replace

@@ -1,0 +1,6 @@
+# Exclude everything except the binary GoReleaser injects via TARGETPLATFORM.
+# This .dockerignore is consulted only by ad-hoc `docker build` invocations
+# (the GoReleaser dockers_v2 pipeline supplies its own build context).
+*
+
+!LICENSE

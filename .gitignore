@@ -1,0 +1,39 @@
+# Binaries / artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/bin/
+/dist/
+/claude-code-fs-shell-mcp
+
+# Test / coverage
+*.test
+*.out
+coverage.txt
+cover.out
+/coverage/
+
+# Go workspace
+go.work
+go.work.sum
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.local
+
+# Lefthook local override
+.lefthook-local.yml
+lefthook-local.yml
