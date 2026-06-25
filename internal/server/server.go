@@ -3,7 +3,7 @@
 package server
 
 import (
-	"fmt"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -25,7 +25,7 @@ var Version = "0.0.0-dev"
 // load-balancer friendliness.
 func New(logger *slog.Logger) (http.Handler, error) {
 	if logger == nil {
-		return nil, fmt.Errorf("server.New: logger must not be nil")
+		return nil, errors.New("server.New: logger must not be nil")
 	}
 
 	mcpServer := mcp.NewServer(&mcp.Implementation{
@@ -38,7 +38,7 @@ func New(logger *slog.Logger) (http.Handler, error) {
 		&mcp.StreamableHTTPOptions{Stateless: true},
 	)
 	if handler == nil {
-		return nil, fmt.Errorf("server.New: mcp.NewStreamableHTTPHandler returned nil")
+		return nil, errors.New("server.New: mcp.NewStreamableHTTPHandler returned nil")
 	}
 
 	logger.Info("mcp server initialised",
