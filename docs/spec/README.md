@@ -38,7 +38,7 @@ Legend:
 
 | Tool | Spec | Implementation | Notes |
 | ---- | ---- | -------------- | ----- |
-| [Read](./read.md)         | 🟢 | 🔴 | Image returned as MCP `image` content; PDF transport details flagged for observation. |
+| [Read](./read.md)         | 🟢 | 🟡 | Text / image / Jupyter implemented and exercised by unit tests. PDF reading returns a "not yet implemented" error; the PDF branch lands in a follow-up PR after observation. |
 | [Write](./write.md)       | 🟡 | 🔴 | Read-before-overwrite semantics is the central rule. |
 | [Edit](./edit.md)         | 🟡 | 🔴 | Three pre-checks (read-before-edit, exact match, uniqueness) are non-negotiable. |
 | [NotebookEdit](./notebookedit.md) | 🟡 | ❌ | Deferred. Out of scope for the initial milestones; spec retained so the gap is visible. |
