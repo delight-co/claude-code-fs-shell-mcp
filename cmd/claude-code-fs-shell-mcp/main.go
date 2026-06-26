@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -19,10 +20,12 @@ import (
 )
 
 const (
-	defaultAddr              = "127.0.0.1:8080"
-	defaultReadHeaderTimeout = 10 * time.Second
-	defaultIdleTimeout       = 120 * time.Second
-	defaultShutdownTimeout   = 10 * time.Second
+	defaultAddr                   = "127.0.0.1:8080"
+	defaultReadHeaderTimeout      = 10 * time.Second
+	defaultIdleTimeout            = 120 * time.Second
+	defaultShutdownTimeout        = 10 * time.Second
+	defaultReadTrackingMaxEntries = 256
+	defaultSessionTTL             = 60 * time.Second
 )
 
 func main() {
@@ -43,7 +46,15 @@ func run(addr string, logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	handler, err := server.New(logger)
+	maxEntries := envIntOr("CCFS_MCP_READ_TRACKING_MAX_ENTRIES", defaultReadTrackingMaxEntries)
+	sessionTTL := envDurationSecondsOr("CCFS_MCP_SESSION_TTL_SECONDS", defaultSessionTTL)
+	registry := server.NewReadTrackingRegistry(maxEntries, sessionTTL, logger)
+	logger.Info("read tracking registry initialised",
+		"max_entries_per_session", maxEntries,
+		"session_ttl_seconds", int(sessionTTL.Seconds()),
+	)
+
+	handler, err := server.New(logger, registry)
 	if err != nil {
 		return fmt.Errorf("build mcp handler: %w", err)
 	}
@@ -87,6 +98,24 @@ func run(addr string, logger *slog.Logger) error {
 	case err := <-errCh:
 		return err
 	}
+}
+
+func envIntOr(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return fallback
+}
+
+func envDurationSecondsOr(key string, fallback time.Duration) time.Duration {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return time.Duration(n) * time.Second
+		}
+	}
+	return fallback
 }
 
 func newLogger(format string) *slog.Logger {

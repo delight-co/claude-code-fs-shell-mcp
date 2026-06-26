@@ -21,13 +21,17 @@ var Version = "0.0.0-dev"
 
 // New returns an HTTP handler that serves Streamable HTTP MCP requests.
 //
-// The handler operates in stateless mode: each HTTP request is treated as an
-// independent session. Stateless mode trades server-initiated requests
-// (sampling, elicitation, progress) for horizontal scalability and
-// load-balancer friendliness.
-func New(logger *slog.Logger) (http.Handler, error) {
+// The handler operates in stateful mode: the SDK validates the
+// Mcp-Session-Id header on every request, which lets tools attach
+// per-session state. The Write tool family needs this for the
+// read-before-overwrite contract; the supplied registry holds that
+// state on behalf of all tools.
+func New(logger *slog.Logger, registry *ReadTrackingRegistry) (http.Handler, error) {
 	if logger == nil {
 		return nil, errors.New("server.New: logger must not be nil")
+	}
+	if registry == nil {
+		return nil, errors.New("server.New: registry must not be nil")
 	}
 
 	mcpServer := mcp.NewServer(&mcp.Implementation{
@@ -35,11 +39,11 @@ func New(logger *slog.Logger) (http.Handler, error) {
 		Version: Version,
 	}, nil)
 
-	tools.RegisterRead(mcpServer, tools.DefaultReadConfig(), logger)
+	tools.RegisterRead(mcpServer, tools.DefaultReadConfig(), logger, registry)
 
 	handler := mcp.NewStreamableHTTPHandler(
 		func(*http.Request) *mcp.Server { return mcpServer },
-		&mcp.StreamableHTTPOptions{Stateless: true},
+		&mcp.StreamableHTTPOptions{Stateless: false},
 	)
 	if handler == nil {
 		return nil, errors.New("server.New: mcp.NewStreamableHTTPHandler returned nil")
@@ -49,7 +53,7 @@ func New(logger *slog.Logger) (http.Handler, error) {
 		"implementation", implementationName,
 		"version", Version,
 		"transport", "streamable-http",
-		"stateless", true,
+		"stateless", false,
 	)
 	return withRequestLog(handler, logger), nil
 }
