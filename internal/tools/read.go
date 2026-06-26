@@ -29,12 +29,6 @@ type ReadInput struct {
 	Pages    string `json:"pages,omitempty" jsonschema:"PDF page range like '1-5'; max 20 pages per call"`
 }
 
-// ReadOutput is intentionally empty so that structured content carries
-// no payload. Image bytes are returned exclusively as MCP image content
-// blocks, never duplicated into structuredContent that a client might
-// serialize to text and forward to the model.
-type ReadOutput struct{}
-
 // ReadConfig configures the read tool's tunable behaviour. The defaults
 // match the values the Claude Code CLI built-in advertises in its
 // prompt-level descriptions.
@@ -61,6 +55,12 @@ const readDescription = `Reads a file from the local filesystem.
 
 // RegisterRead adds the read tool to the given MCP server using the
 // provided configuration.
+//
+// The handler uses `any` as its output type so the SDK does not populate
+// the response's structuredContent field. All payload (text, images,
+// notebook renderings) is returned via Content blocks only. Some MCP
+// clients prefer structuredContent over content when both are present,
+// which would otherwise hide the file contents behind an empty "{}".
 func RegisterRead(s *mcp.Server, cfg ReadConfig, logger *slog.Logger) {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -77,37 +77,35 @@ type readHandler struct {
 	logger *slog.Logger
 }
 
-func (h *readHandler) handle(_ context.Context, _ *mcp.CallToolRequest, in ReadInput) (*mcp.CallToolResult, ReadOutput, error) {
-	out := ReadOutput{}
-
+func (h *readHandler) handle(_ context.Context, _ *mcp.CallToolRequest, in ReadInput) (*mcp.CallToolResult, any, error) {
 	if in.FilePath == "" {
-		return nil, out, errors.New("file_path is required")
+		return nil, nil, errors.New("file_path is required")
 	}
 	if !filepath.IsAbs(in.FilePath) {
-		return nil, out, fmt.Errorf("file_path must be an absolute path, not relative: %s", in.FilePath)
+		return nil, nil, fmt.Errorf("file_path must be an absolute path, not relative: %s", in.FilePath)
 	}
 	clean := filepath.Clean(in.FilePath)
 
 	info, err := os.Stat(clean)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
-		return nil, out, fmt.Errorf("file does not exist: %s", clean)
+		return nil, nil, fmt.Errorf("file does not exist: %s", clean)
 	case errors.Is(err, os.ErrPermission):
-		return nil, out, fmt.Errorf("permission denied: %s", clean)
+		return nil, nil, fmt.Errorf("permission denied: %s", clean)
 	case err != nil:
-		return nil, out, fmt.Errorf("stat %s: %w", clean, err)
+		return nil, nil, fmt.Errorf("stat %s: %w", clean, err)
 	}
 	if info.IsDir() {
-		return nil, out, fmt.Errorf("path is a directory, not a file: %s", clean)
+		return nil, nil, fmt.Errorf("path is a directory, not a file: %s", clean)
 	}
 
 	mtype, err := mimetype.DetectFile(clean)
 	if err != nil {
-		return nil, out, fmt.Errorf("detect mime %s: %w", clean, err)
+		return nil, nil, fmt.Errorf("detect mime %s: %w", clean, err)
 	}
 
 	if mtype.Is("application/pdf") {
-		return nil, out, fmt.Errorf("PDF reading is not yet implemented: %s", clean)
+		return nil, nil, fmt.Errorf("PDF reading is not yet implemented: %s", clean)
 	}
 
 	family, _, _ := strings.Cut(mtype.String(), "/")
@@ -122,16 +120,14 @@ func (h *readHandler) handle(_ context.Context, _ *mcp.CallToolRequest, in ReadI
 	return h.readText(clean, info, in.Offset, in.Limit)
 }
 
-func (h *readHandler) readText(path string, info os.FileInfo, offset, limit int) (*mcp.CallToolResult, ReadOutput, error) {
-	out := ReadOutput{}
-
+func (h *readHandler) readText(path string, info os.FileInfo, offset, limit int) (*mcp.CallToolResult, any, error) {
 	if info.Size() == 0 {
-		return textResult("<system-reminder>Warning: the file exists but the contents are empty.</system-reminder>"), out, nil
+		return textResult("<system-reminder>Warning: the file exists but the contents are empty.</system-reminder>"), nil, nil
 	}
 
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return nil, out, fmt.Errorf("read %s: %w", path, err)
+		return nil, nil, fmt.Errorf("read %s: %w", path, err)
 	}
 	text := string(raw)
 	lines := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
@@ -146,7 +142,7 @@ func (h *readHandler) readText(path string, info os.FileInfo, offset, limit int)
 			"<system-reminder>Warning: the file exists but is shorter than the provided offset (%d). The file has %d lines.</system-reminder>",
 			startLine, totalLines,
 		)
-		return textResult(msg), out, nil
+		return textResult(msg), nil, nil
 	}
 
 	endLine := totalLines
@@ -179,15 +175,13 @@ func (h *readHandler) readText(path string, info os.FileInfo, offset, limit int)
 		)
 	}
 
-	return textResult(b.String()), out, nil
+	return textResult(b.String()), nil, nil
 }
 
-func (h *readHandler) readBinary(path, mime, family string) (*mcp.CallToolResult, ReadOutput, error) {
-	out := ReadOutput{}
-
+func (h *readHandler) readBinary(path, mime, family string) (*mcp.CallToolResult, any, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, out, fmt.Errorf("read %s: %w", path, err)
+		return nil, nil, fmt.Errorf("read %s: %w", path, err)
 	}
 
 	var content mcp.Content
@@ -197,10 +191,10 @@ func (h *readHandler) readBinary(path, mime, family string) (*mcp.CallToolResult
 	case "audio":
 		content = &mcp.AudioContent{Data: data, MIMEType: mime}
 	default:
-		return nil, out, fmt.Errorf("unsupported binary family: %s", family)
+		return nil, nil, fmt.Errorf("unsupported binary family: %s", family)
 	}
 
-	return &mcp.CallToolResult{Content: []mcp.Content{content}}, out, nil
+	return &mcp.CallToolResult{Content: []mcp.Content{content}}, nil, nil
 }
 
 type notebook struct {
@@ -220,17 +214,15 @@ type notebookCellOutput struct {
 	Data       map[string]interface{} `json:"data,omitempty"`
 }
 
-func (h *readHandler) readNotebook(path string) (*mcp.CallToolResult, ReadOutput, error) {
-	out := ReadOutput{}
-
+func (h *readHandler) readNotebook(path string) (*mcp.CallToolResult, any, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return nil, out, fmt.Errorf("read %s: %w", path, err)
+		return nil, nil, fmt.Errorf("read %s: %w", path, err)
 	}
 
 	var nb notebook
 	if err := json.Unmarshal(raw, &nb); err != nil {
-		return nil, out, fmt.Errorf("parse notebook %s: %w", path, err)
+		return nil, nil, fmt.Errorf("parse notebook %s: %w", path, err)
 	}
 
 	var b strings.Builder
@@ -262,7 +254,7 @@ func (h *readHandler) readNotebook(path string) (*mcp.CallToolResult, ReadOutput
 		b.WriteString("</cell>\n")
 	}
 
-	return textResult(b.String()), out, nil
+	return textResult(b.String()), nil, nil
 }
 
 func joinRawSource(raw json.RawMessage) string {

@@ -74,7 +74,7 @@ Returned as line-numbered text, subject to the line cap and pagination rules abo
 Returned as **visual content**, not as raw bytes or base64 in a text body. Concretely:
 
 - The image is returned in the MCP response as an `image` content block (the MCP `image` content type), with the correct `mimeType` set.
-- The image data is **not** duplicated into the `structuredContent` field. Avoiding that duplication is the entire point — clients that serialise `structuredContent` to text (`JSON.stringify` or equivalent) and forward it to the model would otherwise pay the image cost twice. With this server's design, the image arrives once, as a first-class image content block, which a multimodal model can render directly.
+- The image arrives once, as a first-class image content block. The server never duplicates the image data into `structuredContent`; see [Common conventions / Response transport](./README.md#response-transport).
 - The server may downscale very large images before transmission to keep the response within the model's image-size limits, matching the built-in tool's behaviour.
 
 #### PDFs
