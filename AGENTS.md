@@ -53,6 +53,8 @@ lefthook install
 
 CI runs the same checks (plus security scans like `govulncheck` and `gosec`). If CI fails, the underlying problem is reproducible locally with the commands above.
 
+For end-to-end verification with a running Claude Code CLI session, see [CONTRIBUTING.md](./CONTRIBUTING.md#verifying-changes-against-a-running-claude-code-cli).
+
 ## Pull request and issue conventions
 
 - Follow the templates under `.github/PULL_REQUEST_TEMPLATE.md` and `.github/ISSUE_TEMPLATE/`.
