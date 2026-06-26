@@ -99,3 +99,48 @@ func TestWithRequestLog_DoesNotLogBodies(t *testing.T) {
 		t.Errorf("log entry contains response body marker: %s", logged)
 	}
 }
+
+func TestWithRequestLog_LogsMcpSessionIDHeader(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+
+	const wantSessionID = "test-session-abc-123"
+
+	handler := withRequestLog(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}), logger)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader("ping"))
+	req.Header.Set("Mcp-Session-Id", wantSessionID)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	var entry map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &entry); err != nil {
+		t.Fatalf("log entry not valid JSON: %v\n%s", err, buf.String())
+	}
+	if entry["mcp_session_id"] != wantSessionID {
+		t.Errorf("mcp_session_id = %v, want %q", entry["mcp_session_id"], wantSessionID)
+	}
+}
+
+func TestWithRequestLog_EmptyMcpSessionIDWhenHeaderAbsent(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+
+	handler := withRequestLog(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}), logger)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader("ping"))
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	var entry map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &entry); err != nil {
+		t.Fatalf("log entry not valid JSON: %v\n%s", err, buf.String())
+	}
+	if got := entry["mcp_session_id"]; got != "" {
+		t.Errorf("mcp_session_id = %v, want empty when header is absent", got)
+	}
+}
