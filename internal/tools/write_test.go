@@ -356,7 +356,7 @@ func TestWrite_PostWriteStateRefresh(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h.refreshState(sid, path, []byte("fresh\n"), info)
+	refreshReadEntry(h.registry, sid, path, []byte("fresh\n"), info)
 	entry, ok := reg.Get(sid, path)
 	if !ok {
 		t.Fatalf("refreshState should seed registry for non-empty session id")

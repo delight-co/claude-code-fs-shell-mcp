@@ -89,7 +89,7 @@ func (h *writeHandler) handle(_ context.Context, req *mcp.CallToolRequest, in Wr
 	if isSymlink(clean) {
 		return nil, nil, fmt.Errorf(errSymlinkRefusedFormat, clean) //nolint:staticcheck // spec-pinned wording ends with period.
 	}
-	if err := h.checkReadBeforeOverwrite(sessionID, clean, errModifiedPreFlight); err != nil {
+	if err := checkReadBeforeMutation(h.registry, sessionID, clean, errModifiedPreFlight); err != nil {
 		return nil, nil, err
 	}
 
@@ -101,7 +101,7 @@ func (h *writeHandler) handle(_ context.Context, req *mcp.CallToolRequest, in Wr
 	if isSymlink(clean) {
 		return nil, nil, fmt.Errorf(errSymlinkRefusedFormat, clean) //nolint:staticcheck // spec-pinned wording ends with period.
 	}
-	if err := h.checkReadBeforeOverwrite(sessionID, clean, errModifiedInCallTOCTOU); err != nil {
+	if err := checkReadBeforeMutation(h.registry, sessionID, clean, errModifiedInCallTOCTOU); err != nil {
 		return nil, nil, err
 	}
 
@@ -129,18 +129,20 @@ func (h *writeHandler) handle(_ context.Context, req *mcp.CallToolRequest, in Wr
 		)
 	}
 
-	h.refreshState(sessionID, clean, contentBytes, info)
+	refreshReadEntry(h.registry, sessionID, clean, contentBytes, info)
 
 	return textResult(fmt.Sprintf("File %s has been written successfully.", clean)), nil, nil
 }
 
-// checkReadBeforeOverwrite enforces the spec's read-before-overwrite and
+// checkReadBeforeMutation enforces the spec's read-before-overwrite and
 // modified-since-read rules for an existing target. A non-existent
 // target returns nil (a new file does not require a prior Read).
 // modifiedWording is the error string to emit for the
 // modified-since-read failure; pre-flight and in-call paths pass
 // different wordings as the spec requires.
-func (h *writeHandler) checkReadBeforeOverwrite(sessionID, path, modifiedWording string) error {
+//
+// Shared between the Write and Edit tools (and the future Edit family).
+func checkReadBeforeMutation(registry ReadStateAccess, sessionID, path, modifiedWording string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -152,7 +154,7 @@ func (h *writeHandler) checkReadBeforeOverwrite(sessionID, path, modifiedWording
 		return fmt.Errorf("path is a directory, not a file: %s", path)
 	}
 
-	entry, ok := h.registry.Get(sessionID, path)
+	entry, ok := registry.Get(sessionID, path)
 	if !ok || entry.IsPartialView {
 		return errors.New(errExistingButUnread) //nolint:staticcheck // spec-pinned wording ends with period.
 	}
@@ -180,12 +182,17 @@ func (h *writeHandler) checkReadBeforeOverwrite(sessionID, path, modifiedWording
 	return nil
 }
 
-func (h *writeHandler) refreshState(sessionID, path string, content []byte, info os.FileInfo) {
+// refreshReadEntry seeds the per-session read-tracking registry with the
+// content the tool just wrote, so a subsequent edit or overwrite is not
+// blocked by stale state.
+//
+// Shared between the Write and Edit tools (and the future Edit family).
+func refreshReadEntry(registry ReadStateSeed, sessionID, path string, content []byte, info os.FileInfo) {
 	if sessionID == "" {
 		return
 	}
 	normalised := bytes.ReplaceAll(content, []byte("\r\n"), []byte("\n"))
-	h.registry.Seed(sessionID, path, ReadEntry{
+	registry.Seed(sessionID, path, ReadEntry{
 		Content:       normalised,
 		ContentHash:   hashContent(normalised),
 		ModTimeMillis: info.ModTime().UnixMilli(),
