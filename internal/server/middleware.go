@@ -25,6 +25,7 @@ func withRequestLog(next http.Handler, logger *slog.Logger) http.Handler {
 			"status", rec.status,
 			"duration_ms", time.Since(start).Milliseconds(),
 			"bytes", rec.bytes,
+			"mcp_session_id", r.Header.Get("Mcp-Session-Id"),
 		)
 	})
 }

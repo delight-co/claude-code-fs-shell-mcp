@@ -55,7 +55,7 @@ claude mcp remove ccfs
 
 The short alias `ccfs` is suggested so that tool names appear as `mcp__ccfs__read` rather than `mcp__claude-code-fs-shell-mcp__read`. Use whatever alias makes sense for your setup.
 
-The server logs basic HTTP request metadata (method, path, status code, duration, response size) for every MCP request. Request and response bodies are not logged, so tool arguments and file contents stay out of the operational log. When you need a richer view, add temporary `slog` calls and recompile.
+The server logs basic HTTP request metadata (method, path, status code, duration, response size, `Mcp-Session-Id` header) for every MCP request. Request and response bodies are not logged, so tool arguments and file contents stay out of the operational log. When you need a richer view, add temporary `slog` calls and recompile.
 
 ## Pull requests
 
