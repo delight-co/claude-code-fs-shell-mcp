@@ -61,6 +61,18 @@ Each file under this directory uses the same structure:
 9. **Known limitations** — behaviours of the upstream built-in that this server cannot reproduce, with the reason.
 10. **Source notes** — the specific official-doc URLs and Piebald-AI template files this spec was reconciled against.
 
+## Common conventions
+
+These conventions apply to every tool in this server and are therefore not repeated in each tool spec.
+
+### Response transport
+
+Tools return their output exclusively through MCP `content` blocks (`text`, `image`, etc.). The `structuredContent` field of the `CallToolResult` is never populated.
+
+The upstream Claude Code CLI built-in tools return their output as unstructured content; emitting `structuredContent` in addition would diverge from that. The MCP specification also instructs clients to prefer `structuredContent` over `content` when both are present, so sending an empty `structuredContent` alongside the real `content` would cause those clients to display "{}" instead of the actual tool output.
+
+Each tool spec's `Semantics` section describes which content block kinds it emits and any media-type-specific framing (for example, images returned as `image` blocks rather than as base64 in text).
+
 ## Refresh policy
 
 The Claude Code CLI version pinned at the top of this README is the version whose published behaviour this spec attempts to mirror. When a new CLI release introduces a relevant change to a built-in tool, the spec is refreshed in two steps:

@@ -168,8 +168,8 @@ func TestRead_Image(t *testing.T) {
 	if len(img.Data) == 0 {
 		t.Fatalf("want image data, got empty")
 	}
-	if (out != ReadOutput{}) {
-		t.Fatalf("structured output must be empty for image reads, got %+v", out)
+	if out != nil {
+		t.Fatalf("structured output must be nil for image reads, got %+v", out)
 	}
 }
 
