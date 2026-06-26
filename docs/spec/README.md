@@ -8,8 +8,8 @@ The Claude Code CLI is stable but does change occasionally. To make our compatib
 
 | Field | Value |
 | ----- | ----- |
-| Claude Code CLI version we target | `v2.1.191` (released 2026-06-24) |
-| Spec last refreshed | 2026-06-25 |
+| Claude Code CLI version we target | `v2.1.193` (Write spec was deepened against this version; Read and other tool specs were drafted earlier against `v2.1.191` and remain pending reconfirmation) |
+| Spec last refreshed | 2026-06-26 (Write spec) |
 | Tools covered | `Read`, `Write`, `Edit`, `NotebookEdit`, `Bash`, `Grep`, `Glob` |
 
 ## Sources
@@ -39,7 +39,7 @@ Legend:
 | Tool | Spec | Implementation | Notes |
 | ---- | ---- | -------------- | ----- |
 | [Read](./read.md)         | 🟢 | 🟡 | Text / image / Jupyter implemented and exercised by unit tests. PDF reading returns a "not yet implemented" error; the PDF branch lands in a follow-up PR after observation. |
-| [Write](./write.md)       | 🟡 | 🔴 | Read-before-overwrite semantics is the central rule. |
+| [Write](./write.md)       | 🟢 | 🔴 | Read-before-overwrite, modified-since-read, atomic write, symlink safety, per-session LRU read-tracking. |
 | [Edit](./edit.md)         | 🟡 | 🔴 | Three pre-checks (read-before-edit, exact match, uniqueness) are non-negotiable. |
 | [NotebookEdit](./notebookedit.md) | 🟡 | ❌ | Deferred. Out of scope for the initial milestones; spec retained so the gap is visible. |
 | [Bash](./bash.md)         | 🟡 | 🔴 | Working-directory persistence and output-truncation behaviour are the largest design questions. |
