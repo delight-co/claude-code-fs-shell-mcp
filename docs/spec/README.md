@@ -40,7 +40,7 @@ Legend:
 | ---- | ---- | -------------- | ----- |
 | [Read](./read.md)         | 🟢 | 🟡 | Text / image / Jupyter implemented and exercised by unit tests. PDF reading returns a "not yet implemented" error; the PDF branch lands in a follow-up PR after observation. |
 | [Write](./write.md)       | 🟢 | 🟡 | Read-before-overwrite, modified-since-read, atomic write, symlink safety, per-session LRU read-tracking. Implementation in place with unit + integration tests; observation against the pinned CLI version still to follow. |
-| [Edit](./edit.md)         | 🟢 | 🔴 | Three ordered checks (read-before-edit, exact match including smart-quote and unicode-escape fallbacks, uniqueness), per-path mutex / symlink safety / atomicity shared with Write. |
+| [Edit](./edit.md)         | 🟢 | 🟡 | Three ordered checks, per-path mutex / symlink safety / atomicity shared with Write. Initial implementation honours exact-substring and `\uXXXX`-escape match strategies; smart-quote normalisation and non-ASCII → escape regex are deferred to follow-up (see Edit spec Known gaps). |
 | [NotebookEdit](./notebookedit.md) | 🟡 | ❌ | Deferred. Out of scope for the initial milestones; spec retained so the gap is visible. |
 | [Bash](./bash.md)         | 🟡 | 🔴 | Working-directory persistence and output-truncation behaviour are the largest design questions. |
 | [Grep](./grep.md)         | 🟡 | 🔴 | Thin wrapper around ripgrep. |
