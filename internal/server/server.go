@@ -51,5 +51,5 @@ func New(logger *slog.Logger) (http.Handler, error) {
 		"transport", "streamable-http",
 		"stateless", true,
 	)
-	return handler, nil
+	return withRequestLog(handler, logger), nil
 }
