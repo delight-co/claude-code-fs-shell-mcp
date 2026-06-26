@@ -27,3 +27,16 @@ type ReadEntry struct {
 type ReadStateSeed interface {
 	Seed(sessionID, path string, entry ReadEntry)
 }
+
+// ReadStateAccess is the interface tool handlers use when they need to
+// both seed and read back the per-session state, plus serialise writes
+// to a given path. The Write tool family depends on this superset:
+//
+//   - Get to enforce read-before-overwrite and modified-since-read.
+//   - LockPath to serialise concurrent writes to the same path.
+//   - Seed (inherited) to refresh the state after a successful write.
+type ReadStateAccess interface {
+	ReadStateSeed
+	Get(sessionID, path string) (ReadEntry, bool)
+	LockPath(path string) func()
+}

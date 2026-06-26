@@ -39,7 +39,7 @@ Legend:
 | Tool | Spec | Implementation | Notes |
 | ---- | ---- | -------------- | ----- |
 | [Read](./read.md)         | 🟢 | 🟡 | Text / image / Jupyter implemented and exercised by unit tests. PDF reading returns a "not yet implemented" error; the PDF branch lands in a follow-up PR after observation. |
-| [Write](./write.md)       | 🟢 | 🔴 | Read-before-overwrite, modified-since-read, atomic write, symlink safety, per-session LRU read-tracking. |
+| [Write](./write.md)       | 🟢 | 🟡 | Read-before-overwrite, modified-since-read, atomic write, symlink safety, per-session LRU read-tracking. Implementation in place with unit + integration tests; observation against the pinned CLI version still to follow. |
 | [Edit](./edit.md)         | 🟡 | 🔴 | Three pre-checks (read-before-edit, exact match, uniqueness) are non-negotiable. |
 | [NotebookEdit](./notebookedit.md) | 🟡 | ❌ | Deferred. Out of scope for the initial milestones; spec retained so the gap is visible. |
 | [Bash](./bash.md)         | 🟡 | 🔴 | Working-directory persistence and output-truncation behaviour are the largest design questions. |
