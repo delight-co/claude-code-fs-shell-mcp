@@ -2,7 +2,10 @@
 package tools
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha1" //nolint:gosec // SHA-1 here is a content-change detector, not a security primitive.
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -61,11 +64,15 @@ const readDescription = `Reads a file from the local filesystem.
 // notebook renderings) is returned via Content blocks only. Some MCP
 // clients prefer structuredContent over content when both are present,
 // which would otherwise hide the file contents behind an empty "{}".
-func RegisterRead(s *mcp.Server, cfg ReadConfig, logger *slog.Logger) {
+//
+// The seed parameter, when non-nil, is invoked after every successful
+// read so the per-session read-tracking state is populated for the Write
+// tool family (read-before-overwrite, modified-since-read).
+func RegisterRead(s *mcp.Server, cfg ReadConfig, logger *slog.Logger, seed ReadStateSeed) {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	h := &readHandler{cfg: cfg, logger: logger}
+	h := &readHandler{cfg: cfg, logger: logger, seed: seed}
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "read",
 		Description: readDescription,
@@ -75,9 +82,10 @@ func RegisterRead(s *mcp.Server, cfg ReadConfig, logger *slog.Logger) {
 type readHandler struct {
 	cfg    ReadConfig
 	logger *slog.Logger
+	seed   ReadStateSeed
 }
 
-func (h *readHandler) handle(_ context.Context, _ *mcp.CallToolRequest, in ReadInput) (*mcp.CallToolResult, any, error) {
+func (h *readHandler) handle(_ context.Context, req *mcp.CallToolRequest, in ReadInput) (*mcp.CallToolResult, any, error) {
 	if in.FilePath == "" {
 		return nil, nil, errors.New("file_path is required")
 	}
@@ -110,18 +118,19 @@ func (h *readHandler) handle(_ context.Context, _ *mcp.CallToolRequest, in ReadI
 
 	family, _, _ := strings.Cut(mtype.String(), "/")
 	if family == "image" || family == "audio" {
-		return h.readBinary(clean, mtype.String(), family)
+		return h.readBinary(req, clean, info, mtype.String(), family)
 	}
 
 	if strings.EqualFold(filepath.Ext(clean), ".ipynb") {
-		return h.readNotebook(clean)
+		return h.readNotebook(req, clean, info)
 	}
 
-	return h.readText(clean, info, in.Offset, in.Limit)
+	return h.readText(req, clean, info, in.Offset, in.Limit)
 }
 
-func (h *readHandler) readText(path string, info os.FileInfo, offset, limit int) (*mcp.CallToolResult, any, error) {
+func (h *readHandler) readText(req *mcp.CallToolRequest, path string, info os.FileInfo, offset, limit int) (*mcp.CallToolResult, any, error) {
 	if info.Size() == 0 {
+		h.seedReadEntry(req, path, nil, info, offset, limit)
 		return textResult("<system-reminder>Warning: the file exists but the contents are empty.</system-reminder>"), nil, nil
 	}
 
@@ -142,6 +151,7 @@ func (h *readHandler) readText(path string, info os.FileInfo, offset, limit int)
 			"<system-reminder>Warning: the file exists but is shorter than the provided offset (%d). The file has %d lines.</system-reminder>",
 			startLine, totalLines,
 		)
+		h.seedReadEntry(req, path, raw, info, offset, limit)
 		return textResult(msg), nil, nil
 	}
 
@@ -175,10 +185,11 @@ func (h *readHandler) readText(path string, info os.FileInfo, offset, limit int)
 		)
 	}
 
+	h.seedReadEntry(req, path, raw, info, offset, limit)
 	return textResult(b.String()), nil, nil
 }
 
-func (h *readHandler) readBinary(path, mime, family string) (*mcp.CallToolResult, any, error) {
+func (h *readHandler) readBinary(req *mcp.CallToolRequest, path string, info os.FileInfo, mime, family string) (*mcp.CallToolResult, any, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("read %s: %w", path, err)
@@ -194,6 +205,7 @@ func (h *readHandler) readBinary(path, mime, family string) (*mcp.CallToolResult
 		return nil, nil, fmt.Errorf("unsupported binary family: %s", family)
 	}
 
+	h.seedReadEntry(req, path, data, info, 0, 0)
 	return &mcp.CallToolResult{Content: []mcp.Content{content}}, nil, nil
 }
 
@@ -214,7 +226,7 @@ type notebookCellOutput struct {
 	Data       map[string]interface{} `json:"data,omitempty"`
 }
 
-func (h *readHandler) readNotebook(path string) (*mcp.CallToolResult, any, error) {
+func (h *readHandler) readNotebook(req *mcp.CallToolRequest, path string, info os.FileInfo) (*mcp.CallToolResult, any, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("read %s: %w", path, err)
@@ -254,7 +266,51 @@ func (h *readHandler) readNotebook(path string) (*mcp.CallToolResult, any, error
 		b.WriteString("</cell>\n")
 	}
 
+	h.seedReadEntry(req, path, raw, info, 0, 0)
 	return textResult(b.String()), nil, nil
+}
+
+// seedReadEntry records a successful read in the per-session
+// read-tracking registry. It is a no-op when the seed is unset, the
+// request has no associated session, or the session id is empty
+// (typical of bare unit tests). For full reads (offset == 0 and
+// limit == 0), the LF-normalised content and its SHA-1 base64url digest
+// are stored so the Write tool can run the modified-since-read
+// content-equality fallback. For partial reads, those two fields are
+// left zero: the Write tool refuses unconditionally when a partial
+// read's mtime has advanced.
+func (h *readHandler) seedReadEntry(req *mcp.CallToolRequest, path string, raw []byte, info os.FileInfo, offset, limit int) {
+	if h.seed == nil {
+		return
+	}
+	sessionID := ""
+	if req != nil && req.Session != nil {
+		sessionID = req.Session.ID()
+	}
+	if sessionID == "" {
+		return
+	}
+
+	var entryContent []byte
+	var entryHash string
+	if offset == 0 && limit == 0 {
+		normalised := bytes.ReplaceAll(raw, []byte("\r\n"), []byte("\n"))
+		entryContent = normalised
+		entryHash = hashContent(normalised)
+	}
+
+	h.seed.Seed(sessionID, path, ReadEntry{
+		Content:       entryContent,
+		ContentHash:   entryHash,
+		ModTimeMillis: info.ModTime().UnixMilli(),
+		Offset:        offset,
+		Limit:         limit,
+	})
+}
+
+func hashContent(b []byte) string {
+	sum := sha1.Sum(b) //nolint:gosec // content-change detector, not security.
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
 func joinRawSource(raw json.RawMessage) string {
