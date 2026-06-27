@@ -162,3 +162,5 @@ The following behaviours of the upstream Claude Code CLI's built-in `Read` canno
   - System reminders the server emits: `system-reminder-file-exists-but-empty.md`, `system-reminder-file-shorter-than-offset.md`, `system-reminder-file-truncated.md`, `system-reminder-mcp-output-truncation-warning.md`.
   - System reminders the server cannot emit (recorded under [Known limitations](#known-limitations)): `system-reminder-read-truncation-retry-guidance.md`, `system-reminder-file-modified-by-user-or-linter.md`, `system-reminder-file-modification-detected-budget-exceeded.md`, `system-reminder-file-opened-in-ide.md`, `system-reminder-file-summary-completeness-disclosure.md`, `system-reminder-large-file-full-content-reading-guidance.md`, `system-reminder-large-pdf-read-guidance.md`.
 - `1rgs/nanocode`: the `read` tool implementation, used as an independent cross-check for line numbering, the 1-based offset, and the empty/truncated notice shapes.
+
+Verified against Claude Code CLI v2.1.195 on 2026-06-27.

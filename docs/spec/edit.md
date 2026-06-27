@@ -305,3 +305,5 @@ These behaviours of the upstream Claude Code CLI's built-in `Edit` cannot be rep
 - Claude Code CLI [official documentation](https://code.claude.com/docs/en/): `tools-reference` (Edit tool behavior section), `permissions` (Read and Edit section).
 - [`Piebald-AI/claude-code-system-prompts`](https://github.com/Piebald-AI/claude-code-system-prompts) (`tool-description-edit.md`, `tool-description-edit-single-replacement.md`, `tool-description-edit-minimal-old_string-guidance.md`): the upstream prompt-level descriptions sent to the model.
 - [`1rgs/nanocode`](https://github.com/1rgs/nanocode): the `edit` tool implementation in an independent minimal Python reference, useful as a cross-check for the three-checks ordering and the `replace_all` semantics.
+
+Verified against Claude Code CLI v2.1.195 on 2026-06-27.

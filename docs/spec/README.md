@@ -8,8 +8,8 @@ The Claude Code CLI is stable but does change occasionally. To make our compatib
 
 | Field | Value |
 | ----- | ----- |
-| Claude Code CLI version we target | `v2.1.193` (Write and Edit specs were deepened against this version; Read and the remaining tool specs were drafted earlier against `v2.1.191` and remain pending reconfirmation) |
-| Spec last refreshed | 2026-06-26 (Write and Edit specs) |
+| Claude Code CLI version we target | `v2.1.195` (Read, Write, and Edit specs verified against this version on 2026-06-27; Bash and the remaining tool specs are still pending deepening against this version) |
+| Spec last refreshed | 2026-06-27 (Read, Write, and Edit specs verified against v2.1.195) |
 | Tools covered | `Read`, `Write`, `Edit`, `NotebookEdit`, `Bash`, `Grep`, `Glob` |
 
 ## Sources
