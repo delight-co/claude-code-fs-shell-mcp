@@ -237,3 +237,5 @@ The following behaviours of the upstream Claude Code CLI's built-in `Write` cann
 - Claude Code CLI [official documentation](https://code.claude.com/docs/en/): `tools-reference` (Write tool behavior section), `permissions` (Read and Edit section), `permission-modes` (Protected paths section), `security` (Write access restriction section).
 - [`Piebald-AI/claude-code-system-prompts`](https://github.com/Piebald-AI/claude-code-system-prompts) (`tool-description-write.md`, `tool-description-write-read-existing-file-first.md`): the upstream prompt-level descriptions sent to the model, including the wording the CLI advertises for the read-before-overwrite precondition.
 - [`1rgs/nanocode`](https://github.com/1rgs/nanocode): the `write` tool implementation in an independent minimal Python reference, useful as a cross-check for the existing-but-unread refusal and the empty-content case.
+
+Verified against Claude Code CLI v2.1.195 on 2026-06-27.
