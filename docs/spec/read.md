@@ -86,7 +86,7 @@ Returned as **visual content**, not as raw bytes or base64 in a text body. Concr
 
 #### Jupyter notebooks (`.ipynb`)
 
-Returned as the notebook's cells together with their outputs. The structure mirrors the built-in tool: code cells, markdown cells, and visualisations are all surfaced, with the cell identifiers preserved so a subsequent [`NotebookEdit`](./notebookedit.md) can address them.
+Returned as the notebook's cells together with their outputs. The structure mirrors the built-in tool: code cells, markdown cells, and visualisations are all surfaced, with the cell identifiers preserved so a subsequent [`NotebookEdit`](./notebook-edit.md) can address them.
 
 ## Error and notice behaviour
 
