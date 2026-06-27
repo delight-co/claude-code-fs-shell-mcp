@@ -10,7 +10,7 @@ The Claude Code CLI is stable but does change occasionally. To make our compatib
 | ----- | ----- |
 | Claude Code CLI version we target | `v2.1.195` (Read, Write, and Edit specs verified against this version on 2026-06-27; Bash and the remaining tool specs are still pending deepening against this version) |
 | Spec last refreshed | 2026-06-27 (Read, Write, and Edit specs verified against v2.1.195) |
-| Tools covered | `Read`, `Write`, `Edit`, `NotebookEdit`, `Bash`, `Grep`, `Glob` |
+| Tools covered | `Read`, `Write`, `Edit`, `NotebookEdit`, `Bash`, `TaskOutput`, `TaskStop`, `TaskList`, `TaskGet`, `Monitor`, `Grep`, `Glob` |
 
 ## Sources
 
@@ -43,6 +43,11 @@ Legend:
 | [Edit](./edit.md)         | 🟢 | 🟡 | Three ordered checks, per-path mutex / symlink safety / atomicity shared with Write. Initial implementation honours exact-substring and `\uXXXX`-escape match strategies; smart-quote normalisation and non-ASCII → escape regex are deferred to follow-up (see Edit spec Known gaps). |
 | [NotebookEdit](./notebookedit.md) | 🟡 | ❌ | Deferred. Out of scope for the initial milestones; spec retained so the gap is visible. |
 | [Bash](./bash.md)         | 🟡 | 🔴 | Working-directory persistence and output-truncation behaviour are the largest design questions. |
+| [TaskOutput](./taskoutput.md) | 🟡 | ❌ | Deferred. Part of the background-task family that pairs with `Bash`'s `run_in_background` mode; lands after `Bash` itself is stable. |
+| [TaskStop](./taskstop.md) | 🟡 | ❌ | Deferred. Part of the background-task family; see `TaskOutput`. |
+| [TaskList](./tasklist.md) | 🟡 | ❌ | Deferred. Part of the background-task family; see `TaskOutput`. |
+| [TaskGet](./taskget.md)   | 🟡 | ❌ | Deferred. Part of the background-task family; see `TaskOutput`. |
+| [Monitor](./monitor.md)   | 🟡 | ❌ | Deferred. Event-push tool that pairs with `Bash` and the rest of the background-task family. |
 | [Grep](./grep.md)         | 🟡 | 🔴 | Thin wrapper around ripgrep. |
 | [Glob](./glob.md)         | 🟡 | 🔴 | Modification-time sort and a result cap are part of the contract. |
 
