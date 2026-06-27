@@ -33,7 +33,7 @@ Watch an external signal — a shell command's output stream, or a WebSocket con
       "persistent": {
         "type": "boolean",
         "default": false,
-        "description": "When `true`, the monitor runs until a [`TaskStop`](./taskstop.md) call or the end of the session, ignoring `timeout_ms`."
+        "description": "When `true`, the monitor runs until a [`TaskStop`](./task-stop.md) call or the end of the session, ignoring `timeout_ms`."
       },
       "command": {
         "type": "string",
@@ -60,7 +60,7 @@ The upstream tool does not publish a JSON schema. Parameter names and defaults m
 - Exactly one of `command` and `ws` must be provided.
 - The synchronous result of a `Monitor` call confirms that the monitor has started and returns a `task_id` plus a message instructing the caller not to poll. The actual events arrive asynchronously, surfaced through the same event-notification channel that other long-running tools use.
 - When `persistent: false`, the monitor self-terminates at `timeout_ms` and the agent is notified of the termination.
-- When `persistent: true`, the monitor runs until [`TaskStop`](./taskstop.md) is called with its `task_id`, or until the session ends.
+- When `persistent: true`, the monitor runs until [`TaskStop`](./task-stop.md) is called with its `task_id`, or until the session ends.
 
 ### Synchronous start message
 

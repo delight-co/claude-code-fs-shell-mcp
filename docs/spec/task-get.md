@@ -2,11 +2,11 @@
 
 ## Purpose
 
-Fetch the registry entry for a single background task by `task_id`. Where [`TaskList`](./tasklist.md) returns a summary of every task in the session, `TaskGet` returns the full record for one. Where [`TaskOutput`](./taskoutput.md) returns the *output* the task produced, `TaskGet` returns its *metadata* (status, exit code, timestamps, the originating command, the output file path).
+Fetch the registry entry for a single background task by `task_id`. Where [`TaskList`](./task-list.md) returns a summary of every task in the session, `TaskGet` returns the full record for one. Where [`TaskOutput`](./task-output.md) returns the *output* the task produced, `TaskGet` returns its *metadata* (status, exit code, timestamps, the originating command, the output file path).
 
 ## Status
 
-> **Deferred.** Same reasoning as for [`TaskOutput`](./taskoutput.md). The background-task tool family lands once `Bash` itself is stable.
+> **Deferred.** Same reasoning as for [`TaskOutput`](./task-output.md). The background-task tool family lands once `Bash` itself is stable.
 
 ## Signature
 
@@ -32,7 +32,7 @@ The upstream tool does not publish a JSON schema. The single-parameter shape mir
 
 - The result is a snapshot of the named task's registry entry at the time of the call.
 - The entry includes at least `task_id`, `status` (`running` / `completed` / `killed` / similar), the originating `command`, the output file path, start and end timestamps when available, and exit code when the task has completed.
-- A `TaskGet` call does **not** wait for the task to complete; the result reflects the registry state at the moment of the call. For waiting, use [`TaskOutput`](./taskoutput.md) with `block: true`.
+- A `TaskGet` call does **not** wait for the task to complete; the result reflects the registry state at the moment of the call. For waiting, use [`TaskOutput`](./task-output.md) with `block: true`.
 
 ## Error behaviour
 

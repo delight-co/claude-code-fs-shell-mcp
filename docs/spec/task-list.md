@@ -2,11 +2,11 @@
 
 ## Purpose
 
-List the background tasks currently tracked by the session. Returns a summary of each task (`task_id`, `status`, originating `command`, etc.) so the caller can choose a `task_id` to inspect with [`TaskOutput`](./taskoutput.md), look up in detail with [`TaskGet`](./taskget.md), or terminate with [`TaskStop`](./taskstop.md).
+List the background tasks currently tracked by the session. Returns a summary of each task (`task_id`, `status`, originating `command`, etc.) so the caller can choose a `task_id` to inspect with [`TaskOutput`](./task-output.md), look up in detail with [`TaskGet`](./task-get.md), or terminate with [`TaskStop`](./task-stop.md).
 
 ## Status
 
-> **Deferred.** Same reasoning as for [`TaskOutput`](./taskoutput.md). The background-task tool family lands once `Bash` itself is stable.
+> **Deferred.** Same reasoning as for [`TaskOutput`](./task-output.md). The background-task tool family lands once `Bash` itself is stable.
 
 ## Signature
 

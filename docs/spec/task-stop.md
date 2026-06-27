@@ -6,7 +6,7 @@ Stop a background task by `task_id`. This is the kill side of the background-tas
 
 ## Status
 
-> **Deferred.** Same reasoning as for [`TaskOutput`](./taskoutput.md). The background-task tool family lands once `Bash` itself is stable.
+> **Deferred.** Same reasoning as for [`TaskOutput`](./task-output.md). The background-task tool family lands once `Bash` itself is stable.
 
 ## Signature
 
@@ -37,7 +37,7 @@ The upstream tool exposes aliases (`KillShell`, `KillBash`) for the same handler
 
 - The named task is terminated through the same process-group kill path that `Bash` uses internally (SIGTERM to the process group, followed by SIGKILL if the task does not exit within a grace period).
 - The task registry entry is marked `status: "killed"` and an end timestamp is recorded.
-- The output file the task wrote to is **not** automatically removed; it remains available for a later [`TaskOutput`](./taskoutput.md) call (until the registry entry itself is evicted under the session's cleanup policy).
+- The output file the task wrote to is **not** automatically removed; it remains available for a later [`TaskOutput`](./task-output.md) call (until the registry entry itself is evicted under the session's cleanup policy).
 
 ## Error behaviour
 
