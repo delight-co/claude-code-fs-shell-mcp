@@ -50,7 +50,7 @@ When the target path **exists and has been read**, the tool further checks that 
 
 #### Content-equality fallback (full read only)
 
-If the original read was a **full read** (no `offset`, no `limit`), the server compares the content that was recorded at read time against the current on-disk content. The comparison is performed against the LF-normalised content (`\r\n` → `\n`, decoded as UTF-8) and uses a SHA-1 digest, base64url-encoded without padding, that is computed once at read time and stored alongside the cached content.
+If the original read was a **full read** (no `offset`, no `limit`), the server compares the content that was recorded at read time against the current on-disk content. The comparison is performed against the LF-normalised content (`\r\n` → `\n`, decoded as UTF-8) and uses a content hash that is computed once at read time and stored alongside the cached content. The upstream Claude Code CLI uses `Bun.hash(content).toString(36)` (a wyhash-family base36 digest); this MCP server's implementation uses a SHA-1 digest, base64url-encoded without padding, to achieve the same observable behaviour (the hash is only ever compared for equality, so any collision-resistant function is acceptable).
 
 - If the digests (or the contents directly when the digest is absent) match, the on-disk change is treated as noise (for example, a formatter that produced the same bytes), and the write proceeds.
 - If they do not match, the write is refused with the error string for the modified-since-read condition.
@@ -80,7 +80,7 @@ The symlink check is enforced both at permission-check time and at write time; t
 
 The write is performed atomically by default:
 
-1. Write the new content to a temporary file at `<file_path>.tmp.<pid>.<timestamp>` in the same directory.
+1. Write the new content to a uniquely-named temporary file in the same directory. The upstream Claude Code CLI uses `<file_path>.tmp.<pid>.<12 hex chars>` (the 12 hex chars come from `crypto.randomBytes(6)`); this MCP server's implementation uses `<file_path>.ccfs-write-tmp-<random>` via `os.CreateTemp`, achieving the same atomic-rename property.
 2. `fsync` the temporary file.
 3. `rename(2)` the temporary file to `file_path`.
 

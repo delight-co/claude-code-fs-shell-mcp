@@ -43,11 +43,11 @@ The tool runs an ordered chain of checks. Each one must pass before the next is 
 
 ### Pre-flight chain
 
-1. **Path normalisation.** `file_path` must be a non-empty absolute path. The path is normalised (resolve, NFC).
+1. **Path normalisation.** `file_path` must be a non-empty absolute path. The path is resolved (NFC normalisation is *not* applied; the upstream tool does not Unicode-normalise either, despite an earlier draft of this spec saying so).
 2. **No-op rejection.** If `old_string === new_string`, the call is refused immediately.
 3. **File size cap.** Files larger than **1 GB** (`1,073,741,824` bytes) cannot be edited.
 4. **Read-before-edit.** If the target exists on disk, the caller must have read it earlier in the same MCP session. The read-tracking state is shared with [`Write`](./write.md#session-state-model).
-5. **Modified-since-read.** If the target exists and has been read, mtime is checked against the stored timestamp; on advance, a full-read entry triggers the SHA-1 base64url content-equality fallback (see [Write spec § Modified-since-read](./write.md#modified-since-read)). The same logic applies; a partial-read entry with an mtime advance is refused unconditionally.
+5. **Modified-since-read.** If the target exists and has been read, mtime is checked against the stored timestamp; on advance, a full-read entry triggers the content-equality fallback (see [Write spec § Modified-since-read](./write.md#modified-since-read)). The same logic applies; a partial-read entry with an mtime advance is refused unconditionally.
 6. **`.ipynb` rejection.** `.ipynb` paths are refused with a hint to use `NotebookEdit`.
 7. **Match.** `old_string` must appear in the file as supplied, or as a Unicode-normalised equivalent (see [String matching](#string-matching)).
 8. **Uniqueness.** With `replace_all` left at its default, the (normalised) match count must be exactly one. With `replace_all: true`, more than one match is fine.
