@@ -70,9 +70,11 @@ const (
 // Content blocks only, matching the project-wide response transport
 // convention.
 //
-// The registry parameter is accepted for forward compatibility with the
-// tier 2 (read-equivalents seeding) follow-up but is unused in this
-// initial tier 1 implementation.
+// The registry is used by the tier 2 read-equivalents seeding path:
+// when a successful Bash command is recognised as a single-file read
+// (cat, sed -n, head, tail, grep, rg, ...), the corresponding entry is
+// written into the per-session read-tracking state on behalf of
+// subsequent Write / Edit calls.
 func RegisterBash(s *mcp.Server, cfg BashConfig, logger *slog.Logger, registry ReadStateAccess) {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -230,6 +232,12 @@ func (h *bashHandler) handle(ctx context.Context, req *mcp.CallToolRequest, in B
 	}
 	if forcedForeground {
 		parts = append(parts, noticeRunInBgFallback)
+	}
+
+	if !forcedForeground && !timedOut {
+		if results := detectReadEquivalents(in.Command); len(results) > 0 {
+			seedReadEquivalents(ctx, h.registry, sessionID, results, exitCode)
+		}
 	}
 
 	content := strings.Join(parts, "\n")
