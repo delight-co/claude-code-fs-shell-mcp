@@ -44,6 +44,7 @@ func New(logger *slog.Logger, registry *ReadTrackingRegistry) (http.Handler, err
 	tools.RegisterEdit(mcpServer, tools.DefaultEditConfig(), logger, registry)
 	tools.RegisterBash(mcpServer, tools.DefaultBashConfig(), logger, registry)
 	tools.RegisterGrep(mcpServer, tools.DefaultGrepConfig(), logger)
+	tools.RegisterGlob(mcpServer, tools.DefaultGlobConfig(), logger)
 
 	handler := mcp.NewStreamableHTTPHandler(
 		func(*http.Request) *mcp.Server { return mcpServer },
