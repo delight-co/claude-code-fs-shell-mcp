@@ -199,6 +199,8 @@ Preview (first 2.00KB):
 
 The trailing `...\n` is omitted when the preview equals the entire output. When the rendered content is empty, the wrap pipeline substitutes `(Grep completed with no output)`.
 
+This MCP server's initial implementation uses a simplified single-tier cap: when the assembled tool-result content exceeds `OutputCapChars` (default `20000`), the content is truncated and `\n\n[truncated: output exceeded the per-call cap]` is appended. The full `<persisted-output>` envelope (with persisted-file path + preview block) is recorded as a Known gap; the same simplification applies to the Bash tool's tier 1 output handling.
+
 ## Errors and notices
 
 Errors are surfaced as MCP tool errors, wrapped by the tool runner as `<tool_use_error>...</tool_use_error>`. Wording is pinned below.
@@ -279,6 +281,7 @@ These are gaps the implementation pull request will close, either by choosing a 
 - **(Tier 4b) First-use `rg --version` availability check.** The upstream tool fires a `tengu_ripgrep_availability` telemetry event before the first Grep call. The MCP server skips the check by default to avoid an extra spawn per process lifetime; the implementation may add it as an opt-in if observation shows it useful for early-failure messaging.
 - **Behaviour when `head_limit < 0`.** The schema accepts any number; the upstream wrapper has no explicit clamp. The MCP server's implementation will clamp negative values to `0` (= unlimited) at impl time and record the choice here.
 - **Behaviour when `path` is a file rather than a directory.** Upstream `validateInput` does not reject this; rg handles single-file paths transparently. The MCP server will match the upstream behaviour and add an integration test to confirm.
+- **(Tier 4b) Wrap cap simplification.** The initial implementation uses a single-tier truncate notice (`[truncated: output exceeded the per-call cap]`) instead of the full `<persisted-output>` envelope; see [Wrap cap](#wrap-cap). The full envelope (with persisted-file path + preview block) lands in a follow-up alongside the Bash tool's equivalent simplification.
 
 ## Known limitations
 
