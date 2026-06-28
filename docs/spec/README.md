@@ -49,7 +49,7 @@ Legend:
 | [TaskGet](./task-get.md)   | 🟡 | ❌ | Deferred. Part of the background-task family; see `TaskOutput`. |
 | [Monitor](./monitor.md)   | 🟡 | ❌ | Deferred. Event-push tool that pairs with `Bash` and the rest of the background-task family. |
 | [Grep](./grep.md)         | 🟢 | 🔴 | Wrapper around ripgrep with the upstream's default args, mode-specific output formatting, pagination, and the byte-exact error / notice wording pinned. |
-| [Glob](./glob.md)         | 🟡 | 🔴 | Modification-time sort and a result cap are part of the contract. |
+| [Glob](./glob.md)         | 🟢 | 🔴 | Wrapper around ripgrep's `--files` mode with the upstream's default args, the 100-path cap (25000 in the REPL surface), `--sort=modified`, and the byte-exact error / notice wording pinned. |
 
 ## How to read each tool spec
 
