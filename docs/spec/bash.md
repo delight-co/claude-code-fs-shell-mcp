@@ -152,6 +152,8 @@ The final tool result content concatenates, in order: stdout, stderr, the option
 
 The notice and error wordings emitted in this section are pinned verbatim under [Errors](#errors) and [Notices](#notices).
 
+This MCP server's initial implementation uses a simplified single-tier cap: when the assembled tool-result content exceeds `OutputCapChars` (default `30000`), the content is truncated and `\n\n[truncated: output exceeded the per-call cap]` is appended. The full three-tier cap chain (in-memory spill to file, file-spill hard cap, `<persisted-output>` envelope with persisted-file path + preview block) is recorded as a Known gap; the same simplification applies to the Grep and Glob tools.
+
 ### Background tasks
 
 `run_in_background: true` starts the command and returns **immediately** with the result:
@@ -350,6 +352,7 @@ These are gaps the implementation pull request will close, either by choosing a 
 - **(Tier 4b) git-operation classification.** The upstream tool classifies commit / push / merge / rebase / PR operations to apply specific safety prompts. This MCP server could implement an equivalent classifier but does not in the initial milestone.
 - **(Tier 4b) Personal- and team-memory secret scanning.** The upstream CLI runs a secret scanner against commands that target its memory directories. The MCP server has no concept of those directories and does not scan; this could be implemented as an opt-in plug-in but is not part of the initial milestone.
 - **Shell choice on Windows.** The upstream CLI prefers Git Bash and falls back to PowerShell. This server will document its expectations on the hosting environment (POSIX shell on `PATH`) rather than reproducing the fallback.
+- **(Tier 4b) Wrap cap simplification.** The initial implementation uses a single-tier truncate notice (`[truncated: output exceeded the per-call cap]`) instead of the full three-tier cap chain. The full `<persisted-output>` envelope (with persisted-file path + preview block) lands in a follow-up alongside the Grep / Glob equivalents.
 
 ## Known limitations
 

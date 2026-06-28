@@ -213,6 +213,7 @@ These are gaps the implementation pull request will close, either by choosing a 
 - **Behaviour when `pattern === ""`.** rg's `--glob ""` returns exit code 2 (suppressed upstream), resulting in `No files found`. Behaviour confirmation by execution is queued.
 - **Behaviour when `globLimits.maxResults` is 0 or negative.** The MCP server's implementation will clamp to a sensible default; the choice is recorded at impl time.
 - **(Tier 4b) WSL auto-detection for the 60s timeout.** The initial impl uses the 20s default everywhere; deployments on WSL should set `CLAUDE_CODE_GLOB_TIMEOUT_SECONDS` (e.g., to 60) to match the upstream's WSL behaviour. The auto-detection lands in a follow-up. The same gap exists for Bash and Grep.
+- **(Tier 4b) "Did you mean ...?" suggestion suffix.** The upstream tool appends ` Did you mean <suggested>?` to the path-not-exist error when a similar directory exists nearby. The initial implementation omits this suggestion suffix; the wording surfaces only the bare `Directory does not exist: <path>. Note: your current working directory is <cwd>.` form. The suggestion lookup lands in a follow-up.
 
 ## Known limitations
 
