@@ -212,6 +212,7 @@ These are gaps the implementation pull request will close, either by choosing a 
 - **(Tier 4b) Absolute-pattern silent search-root override.** When `pattern` is absolute, the upstream silently overrides the caller's `path`. The permission check still sees the caller's `path`, producing a subtle mismatch. The MCP server's implementation will reproduce the same behaviour for parity; whether to surface a notice or reconcile the two paths is recorded for a follow-up.
 - **Behaviour when `pattern === ""`.** rg's `--glob ""` returns exit code 2 (suppressed upstream), resulting in `No files found`. Behaviour confirmation by execution is queued.
 - **Behaviour when `globLimits.maxResults` is 0 or negative.** The MCP server's implementation will clamp to a sensible default; the choice is recorded at impl time.
+- **(Tier 4b) WSL auto-detection for the 60s timeout.** The initial impl uses the 20s default everywhere; deployments on WSL should set `CLAUDE_CODE_GLOB_TIMEOUT_SECONDS` (e.g., to 60) to match the upstream's WSL behaviour. The auto-detection lands in a follow-up. The same gap exists for Bash and Grep.
 
 ## Known limitations
 
