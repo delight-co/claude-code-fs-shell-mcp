@@ -176,12 +176,12 @@ func TestBuildEnvStripsAuth(t *testing.T) {
 	hasGitEditor := false
 	hasShell := false
 	for _, kv := range env {
-		switch {
-		case kv == "MY_PUBLIC_VAR=kept":
+		switch kv {
+		case "MY_PUBLIC_VAR=kept":
 			hasMyVar = true
-		case kv == "GIT_EDITOR=true":
+		case "GIT_EDITOR=true":
 			hasGitEditor = true
-		case kv == "SHELL=/bin/bash":
+		case "SHELL=/bin/bash":
 			hasShell = true
 		}
 	}

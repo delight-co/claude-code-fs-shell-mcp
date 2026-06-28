@@ -144,7 +144,7 @@ func (h *bashHandler) handle(ctx context.Context, req *mcp.CallToolRequest, in B
 
 	shellPath, err := h.detectShell()
 	if err != nil {
-		return nil, nil, errors.New(errBashShellNotFound)
+		return nil, nil, errors.New(errBashShellNotFound) //nolint:staticcheck // spec-pinned wording ends with period.
 	}
 
 	env := h.buildEnv(shellPath)
@@ -262,7 +262,7 @@ func (h *bashHandler) detectShell() (string, error) {
 		}
 	}
 	for _, c := range candidates {
-		if info, err := os.Stat(c); err == nil && !info.IsDir() {
+		if info, err := os.Stat(c); err == nil && !info.IsDir() { //nolint:gosec // shell binary lookup; candidates are constrained to bash/zsh in standard locations or operator-supplied env vars.
 			return c, nil
 		}
 	}
