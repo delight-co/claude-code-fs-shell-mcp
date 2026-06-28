@@ -14,4 +14,3 @@
 
 - [ ] CI is green (lint, test, build, vulnerability scan).
 - [ ] Documentation updated if behaviour or configuration changed.
-- [ ] Commits are signed off (DCO).
