@@ -42,7 +42,7 @@ Legend:
 | [Write](./write.md)       | 🟢 | 🟡 | Read-before-overwrite, modified-since-read, atomic write, symlink safety, per-session LRU read-tracking. Implementation in place with unit + integration tests; observation against the pinned CLI version still to follow. |
 | [Edit](./edit.md)         | 🟢 | 🟡 | Three ordered checks, per-path mutex / symlink safety / atomicity shared with Write. Initial implementation honours exact-substring and `\uXXXX`-escape match strategies; smart-quote normalisation and non-ASCII → escape regex are deferred to follow-up (see Edit spec Known gaps). |
 | [NotebookEdit](./notebook-edit.md) | 🟡 | ❌ | Deferred. Out of scope for the initial milestones; spec retained so the gap is visible. |
-| [Bash](./bash.md)         | 🟡 | 🔴 | Working-directory persistence and output-truncation behaviour are the largest design questions. |
+| [Bash](./bash.md)         | 🟢 | 🔴 | All four design surfaces (cwd persistence, output cap chain, background-task family, read-equivalents detection) pinned. Implementation pending. |
 | [TaskOutput](./task-output.md) | 🟡 | ❌ | Deferred. Part of the background-task family that pairs with `Bash`'s `run_in_background` mode; lands after `Bash` itself is stable. |
 | [TaskStop](./task-stop.md) | 🟡 | ❌ | Deferred. Part of the background-task family; see `TaskOutput`. |
 | [TaskList](./task-list.md) | 🟡 | ❌ | Deferred. Part of the background-task family; see `TaskOutput`. |
