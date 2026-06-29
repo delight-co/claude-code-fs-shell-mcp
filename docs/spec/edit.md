@@ -37,6 +37,18 @@ Make a targeted change to an existing file by replacing one exact substring with
 
 The upstream tool does not publish a JSON schema. Parameter names and the `replace_all` default mirror what the model sees in the prompt-level descriptions and are stable across the captured CLI versions.
 
+## Capability boundaries
+
+`Edit` tool functionality falls into four capability tiers in this MCP server context. The Known gaps and Known limitations sections below use this taxonomy when describing each behaviour's status.
+
+| Tier | What it covers | Status in this server |
+| ---- | -------------- | --------------------- |
+| **1 — Self-contained** | Path validation, no-op rejection, file size cap, `.ipynb` rejection, exact-substring and `\uXXXX`-escape match strategies, `replace_all` semantics, trailing-newline absorption, UTF-8 / UTF-16LE encoding handling. Atomicity, per-path mutex, symlink safety, and post-write verification are shared with [`Write`](./write.md). | **In scope for the initial implementation.** |
+| **2 — fs-tool integration** | Read-before-edit + modified-since-read contracts via the per-session read-tracking state shared with [`Write`](./write.md) and seeded by [`Read`](./read.md). | **In scope for the initial implementation.** |
+| **3 — Sibling-tool integration** | (Edit does not depend on other tool families; not applicable.) | n/a |
+| **4a — Architecturally infeasible** | Session-resume read-tracking persistence, graceful session termination, PostToolUse hook re-sync, background-session worktree isolation, `tengu_velvet_hammer` / `tengu_cedar_sundial` experiment-flag escape hatches. | **Not reproducible**; recorded in Known limitations. |
+| **4b — Implementable but deferred** | Smart-quote (strategy 2) and non-ASCII regex (strategy 4) match strategies plus the corresponding `new_string` synchronisation, LSP `changeFile` / `saveFile` notifications, memory-file YAML-frontmatter injection, settings-file schema validation, personal- / team-memory secret scanning. | **Deferred**; recorded in Known gaps and Known limitations. |
+
 ## Semantics
 
 The tool runs an ordered chain of checks. Each one must pass before the next is evaluated; the first failure short-circuits with the matching error.
@@ -270,35 +282,35 @@ Notes:
 ## Known gaps
 
 - **Read-equivalent shell commands.** The upstream tool counts certain single-file shell invocations as Read-equivalents for satisfying the read-before-edit precondition. The recognised set is the same as for [`Write`](./write.md#known-gaps) (`cat`, `nl`, `bat`, `batcat`, `sed -n 'Np'` / `sed -n 'N,Mp'`, `head`, `tail`, `grep` / `egrep` / `fgrep`, `rg`, with no pipes or redirects; `grep` / `rg` additionally require an exit-zero result). The full rules are now pinned in [`bash.md`'s Read-equivalent shell commands section](./bash.md#read-equivalent-shell-commands); the seeding will only take effect once the bash tool implementation lands. Until then, only an explicit `Read` call seeds the read-tracking state.
-- **Smart-quote normalisation and unicode-regex match strategies (initial-implementation gap).** The initial implementation honours only strategy 1 (exact substring) and strategy 3 (`\uXXXX` literal → real character) of the four-strategy match chain. Strategy 2 (smart-quote normalisation) and strategy 4 (real character → case-insensitive `\uXXXX` regex), and the corresponding smart-quote / unicode synchronisation of `new_string`, are deferred to follow-up work; callers must pass `old_string` in the same form (smart vs straight quotes, escape vs real characters) as the file content for those less-common cases. The dominant smart-quote code-point pairs (`U+2018`/`U+2019` for single, `U+201C`/`U+201D` for double) are documented here so the eventual implementation matches the upstream tool.
+- **(Tier 4b) Smart-quote normalisation and unicode-regex match strategies (initial-implementation gap).** The initial implementation honours only strategy 1 (exact substring) and strategy 3 (`\uXXXX` literal → real character) of the four-strategy match chain. Strategy 2 (smart-quote normalisation) and strategy 4 (real character → case-insensitive `\uXXXX` regex), and the corresponding smart-quote / unicode synchronisation of `new_string`, are deferred to follow-up work; callers must pass `old_string` in the same form (smart vs straight quotes, escape vs real characters) as the file content for those less-common cases. The dominant smart-quote code-point pairs (`U+2018`/`U+2019` for single, `U+201C`/`U+201D` for double) are documented here so the eventual implementation matches the upstream tool.
 - **`isPartialView` trigger conditions.** Inherited from the [Write spec's known gaps](./write.md#known-gaps); the server's initial implementation treats every `Read` as producing a non-partial-view entry.
-- **Settings-file schema validation.** The upstream tool runs a schema validation step when the target path is its own settings file (`~/.claude/settings.json` and `~/.claude/settings.local.json`). The MCP server does not own that schema and skips this step; an edit to those files is treated like any other file.
-- **Memory-file frontmatter injection.** The upstream tool injects YAML frontmatter into Markdown files under its team-/personal-memory directories on first write. The MCP server has no concept of those directories and does not perform the injection. See also the related Known limitation below.
-- **LSP integration.** The upstream tool sends `changeFile` + `saveFile` notifications to the configured LSP server when it edits a file open in the IDE. The MCP server does not currently integrate with an LSP and skips this step.
+- **(Tier 4b) Settings-file schema validation.** The upstream tool runs a schema validation step when the target path is its own settings file (`~/.claude/settings.json` and `~/.claude/settings.local.json`). The MCP server does not own that schema and skips this step; an edit to those files is treated like any other file.
+- **(Tier 4b) Memory-file frontmatter injection.** The upstream tool injects YAML frontmatter into Markdown files under its team-/personal-memory directories on first write. The MCP server has no concept of those directories and does not perform the injection. See also the related Known limitation below.
+- **(Tier 4b) LSP integration.** The upstream tool sends `changeFile` + `saveFile` notifications to the configured LSP server when it edits a file open in the IDE. The MCP server does not currently integrate with an LSP and skips this step.
 
 ## Known limitations
 
 These behaviours of the upstream Claude Code CLI's built-in `Edit` cannot be reproduced by an MCP server interposed between the CLI and the filesystem. The first four are shared with the Write spec; the remaining items are Edit-specific.
 
-- **Read-before-edit tracking across resumed conversations.** The upstream Claude Code CLI does not persist its MCP session id across CLI process lifetimes. Resuming a conversation starts a new CLI process with a fresh session id, so previously-read files appear unread to the server after a resume.
+- **(Tier 4a) Read-before-edit tracking across resumed conversations.** The upstream Claude Code CLI does not persist its MCP session id across CLI process lifetimes. Resuming a conversation starts a new CLI process with a fresh session id, so previously-read files appear unread to the server after a resume.
 
-- **No graceful session termination from the upstream CLI.** The upstream CLI does not send the MCP `DELETE` request when it exits. The server relies on transport-disconnect detection to clean up per-session state.
+- **(Tier 4a) No graceful session termination from the upstream CLI.** The upstream CLI does not send the MCP `DELETE` request when it exits. The server relies on transport-disconnect detection to clean up per-session state.
 
-- **PostToolUse hook re-sync.** The upstream CLI runs PostToolUse hooks after every successful edit and re-reads the file when a hook bumps mtime, seeding its own read-tracking state with the post-hook content. The MCP server has no in-CLI hook surface and cannot drive this.
+- **(Tier 4a) PostToolUse hook re-sync.** The upstream CLI runs PostToolUse hooks after every successful edit and re-reads the file when a hook bumps mtime, seeding its own read-tracking state with the post-hook content. The MCP server has no in-CLI hook surface and cannot drive this.
 
-- **Background-session worktree isolation.** The upstream CLI enforces a worktree-isolation invariant on background sessions, refusing edits that would write to files outside the session's worktree. The MCP server has no notion of background sessions or worktrees and does not enforce this.
+- **(Tier 4a) Background-session worktree isolation.** The upstream CLI enforces a worktree-isolation invariant on background sessions, refusing edits that would write to files outside the session's worktree. The MCP server has no notion of background sessions or worktrees and does not enforce this.
 
-- **`tengu_velvet_hammer` escape hatch.** The upstream CLI exposes an experiment flag that bypasses the read-before-edit guard. The MCP server intentionally does not implement it: the guard protects agents from clobbering concurrent edits, and an MCP-level bypass would undermine that contract.
+- **(Tier 4a) `tengu_velvet_hammer` escape hatch.** The upstream CLI exposes an experiment flag that bypasses the read-before-edit guard. The MCP server intentionally does not implement it: the guard protects agents from clobbering concurrent edits, and an MCP-level bypass would undermine that contract.
 
-- **`tengu_cedar_sundial` stale-recovery.** The upstream CLI exposes an experiment flag that, when enabled, allows an edit to proceed even after `mtime` has advanced and the content hash mismatches, provided `old_string` still matches unambiguously in the new content. When this fires, the CLI's success message gains an explanatory `(note: …)` suffix. The MCP server intentionally does not implement this: silently editing a file whose context has changed under the agent's feet defeats the purpose of the modified-since-read check. The corresponding success-message variants are documented above for parity, but the server never emits them in practice.
+- **(Tier 4a) `tengu_cedar_sundial` stale-recovery.** The upstream CLI exposes an experiment flag that, when enabled, allows an edit to proceed even after `mtime` has advanced and the content hash mismatches, provided `old_string` still matches unambiguously in the new content. When this fires, the CLI's success message gains an explanatory `(note: …)` suffix. The MCP server intentionally does not implement this: silently editing a file whose context has changed under the agent's feet defeats the purpose of the modified-since-read check. The corresponding success-message variants are documented above for parity, but the server never emits them in practice.
 
-- **Personal- and team-memory secret scanning.** The upstream CLI runs a secret scanner against `new_string` when the target is in one of its memory directories. The MCP server has no notion of these directories and does not scan.
+- **(Tier 4b) Personal- and team-memory secret scanning.** The upstream CLI runs a secret scanner against `new_string` when the target is in one of its memory directories. The MCP server has no notion of these directories and does not scan.
 
-- **Memory-file frontmatter injection.** See [Known gaps](#known-gaps); the upstream tool injects YAML frontmatter into Markdown files under its memory directories on first write. Not reproduced here.
+- **(Tier 4b) Memory-file frontmatter injection.** See [Known gaps](#known-gaps); the upstream tool injects YAML frontmatter into Markdown files under its memory directories on first write. Not reproduced here.
 
-- **LSP `changeFile` / `saveFile` notification.** See [Known gaps](#known-gaps); the upstream tool notifies an attached LSP server after each edit. Not currently reproduced.
+- **(Tier 4b) LSP `changeFile` / `saveFile` notification.** See [Known gaps](#known-gaps); the upstream tool notifies an attached LSP server after each edit. Not currently reproduced.
 
-- **Settings-file schema validation.** See [Known gaps](#known-gaps); the upstream tool runs a JSON-schema check when editing its own settings file. The MCP server treats those paths like any other.
+- **(Tier 4b) Settings-file schema validation.** See [Known gaps](#known-gaps); the upstream tool runs a JSON-schema check when editing its own settings file. The MCP server treats those paths like any other.
 
 ## Source notes
 
