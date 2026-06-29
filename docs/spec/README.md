@@ -88,6 +88,12 @@ The MCP specification's `Annotations.Audience` field on tool-result content bloc
 
 Tracked upstream as [anthropics/claude-code#72239](https://github.com/anthropics/claude-code/issues/72239). Until the upstream client honours the hint, this server's tools render their full content into both the TUI and the model context, even on responses that would otherwise benefit from a per-block audience split.
 
+### Binary `EmbeddedResource.blob` content is not forwarded to the model
+
+The MCP specification's `EmbeddedResource` content block with a `resource.blob` byte payload (e.g. `mimeType: "application/pdf"` + base64 PDF bytes) is the standard mechanism for an MCP server to deliver binary content. Claude Code CLI v2.1.x does not forward those bytes into an Anthropic API `document` / `image` / `audio` content block: instead, the client persists the blob to a file under `~/.claude/projects/<encoded-cwd>/tool-results/mcp-<server>-blob-<id>.<ext>` and surfaces only a placeholder text to the model (`[Resource from <server> at <uri>] Binary content (<mimeType>, <size>) saved to <path>`). The model sees the path, not the content.
+
+Tracked upstream as [anthropics/claude-code#72271](https://github.com/anthropics/claude-code/issues/72271). Until the upstream client routes supported MIME types into the corresponding Anthropic API content blocks, this server's tools cannot deliver binary content (PDFs, images, audio) to the model through the MCP `EmbeddedResource` path. Tools that need the model to consume binary content must convert it into a supported `content` block kind themselves before returning — for example, the [`Read`](./read.md) tool's PDF parts-mode rasterises each page into an `image` content block instead of relying on `EmbeddedResource` for the whole PDF.
+
 ## Refresh policy
 
 The Claude Code CLI version pinned at the top of this README is the version whose published behaviour this spec attempts to mirror. When a new CLI release introduces a relevant change to a built-in tool, the spec is refreshed in two steps:
