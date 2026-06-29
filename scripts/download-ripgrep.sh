@@ -50,7 +50,14 @@ for entry in "${PLATFORMS[@]}"; do
   # checksum file uses CertUtil's multi-line format. Extracting the first
   # 64-character lowercase hex sequence handles both shapes.
   expected=$(grep -oE '[a-f0-9]{64}' "${tmp}/${archive}.sha256" | head -1)
-  actual=$(sha256sum "${tmp}/${archive}" | awk '{print $1}')
+  # sha256sum is the GNU coreutils name (Linux); shasum -a 256 is the
+  # equivalent shipped with macOS by default. Pick whichever is available
+  # so the script runs on both CI runners.
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual=$(sha256sum "${tmp}/${archive}" | awk '{print $1}')
+  else
+    actual=$(shasum -a 256 "${tmp}/${archive}" | awk '{print $1}')
+  fi
   if [[ "$expected" != "$actual" ]]; then
     echo "sha256 mismatch for ${archive}: expected ${expected}, got ${actual}" >&2
     rm -rf "$tmp"
