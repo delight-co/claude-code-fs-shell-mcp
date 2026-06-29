@@ -50,7 +50,7 @@ The Claude Code CLI does not publish a JSON schema directly. The parameter names
 | **2 — fs-tool integration** | Seeding the per-session read-tracking state that [`Write`](./write.md) and [`Edit`](./edit.md) consult for the read-before-overwrite / read-before-edit contracts. | **In scope for the initial implementation.** |
 | **3 — Sibling-tool integration** | (Read does not depend on other tool families; not applicable.) | n/a |
 | **4a — Architecturally infeasible** | Client-tracking out-of-band system reminders that depend on the upstream CLI observing filesystem state outside any single tool call; whole-PDF transport via the upstream `document` content block injected as an `isMeta` user message (CLI-internal message construction, no MCP-level surface). | **Not reproducible**; recorded in Known limitations so callers know the gaps. |
-| **4b — Implementable but deferred** | (Known gaps below are value-pinning or observation-pending, not deferred-implementable behaviours; no Tier 4b items.) | n/a |
+| **4b — Implementable but deferred** | Dynamic JPEG byte-budget compression loop in PDF parts-mode rendering (upstream's `H8` / `W8d` / `UQr` pipeline: target 500 KB, cap 5 MB base64). This server enforces the 2000 × 2000 dimension cap only. | **Deferred** (Known gaps) |
 
 ## Semantics
 
@@ -173,6 +173,7 @@ The wording below matches the upstream Claude Code CLI's `Read` tool. Server-sid
   ```
   This PDF has <N> pages, which is too many to read at once. Use the pages parameter to read specific page ranges (e.g., pages: "1-5"). Maximum 20 pages per request.
   ```
+  Reproduced verbatim above for parity. This MCP server does not run `pdfinfo` and does not emit this wording; the "Whole-PDF mode unavailable" wording below covers both the "too many pages" and "model-not-supported" upstream conditions in one shot whenever `pages` is omitted on a PDF.
 - **Whole-PDF mode unavailable** (= upstream "model not supported" wording, adapted because this MCP server is sandbox-agnostic and has no model-name visibility; `pages` is always required for PDFs that would otherwise enter pdf-mode):
   ```
   Reading full PDFs is not supported by this MCP server. Use the pages parameter to read specific page ranges (e.g., pages: "1-5", maximum 20 pages per request).
@@ -251,6 +252,7 @@ The upstream tool also pins error wordings specific to the pdf-mode (whole-PDF) 
 These are gaps the implementation pull request will close, either by choosing a concrete behaviour or by reporting observed behaviour against the pinned CLI version.
 
 - **Long-line truncation cap.** The exact character cap at which an individual line is truncated is not published. The implementation will pick a value matching observed behaviour and document it.
+- **(Tier 4b) PDF parts-mode image byte-budget compression loop.** The upstream rendering pipeline runs a dynamic JPEG quality-reduction loop after the dimension resize, targeting 500 KB per page (cap 5 MB base64) via the `H8` / `W8d` / `UQr` constants. This server enforces only the 2000 × 2000 dimension cap; pages whose JPEG bytes exceed the upstream byte budgets are returned without further compression. The byte-budget loop is not implemented today.
 - **Error message string formats.** The upstream documentation specifies which conditions are errors but not the exact wording. The implementation will choose a stable wording that distinguishes the cases listed in [Errors the server returns](#errors-the-server-returns) and document the formats here.
 
 ## Known limitations
