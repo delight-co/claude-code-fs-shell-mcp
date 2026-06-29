@@ -94,17 +94,21 @@ The schema mirrors the upstream `Grep` tool's parameters, including the upstream
 
 | Tier | What it covers | Status in this server |
 | ---- | -------------- | --------------------- |
-| **1 — Self-contained** | ripgrep binary resolution, args assembly, output formatting per mode, timeout, the byte-exact error / notice wording, the wrap cap with `<persisted-output>` envelope. | **In scope for the initial implementation.** |
+| **1 — Self-contained** | Embedded ripgrep binary extraction at startup, args assembly, output formatting per mode, timeout, the byte-exact error / notice wording, the wrap cap with `<persisted-output>` envelope. | **In scope for the initial implementation.** |
 | **2 — fs-tool integration** | (Grep does not seed the read-tracking state; not applicable.) | n/a |
 | **3 — Sibling-tool integration** | (Grep does not depend on other tool families; not applicable.) | n/a |
-| **4a — Architecturally infeasible** | PostToolUse hooks (memory-directory tracking after a Grep call), REPL-inner native timeout, the `Fpt()` removal-when-shell-available behaviour, the embedded-ripgrep re-exec path. | **Not reproducible** (Known limitations) |
+| **4a — Architecturally infeasible** | PostToolUse hooks (memory-directory tracking after a Grep call), REPL-inner native timeout, the `Fpt()` removal-when-shell-available behaviour. | **Not reproducible** (Known limitations) |
 | **4b — Implementable but deferred** | Orphaned-worktree exclusions, deny-rule path → `rg --glob !` conversion, auto-classifier input, model-conditional description prompt, first-use availability check. | **Deferred** (Known gaps) |
 
 ## Semantics
 
 ### Search engine
 
-The engine is **ripgrep** (`rg`). The MCP server expects `rg` to be available on the hosting environment's `PATH`. The upstream CLI additionally supports two extra modes (an embedded `rg` inside its Bun-bundled binary, and a `USE_BUILTIN_RIPGREP` env-var preference); these are out of scope for an interposed MCP server, which deploys against whatever shell environment the hosting container provides.
+The engine is **ripgrep** (`rg`). The server ships an embedded `rg` binary for the supported target platforms (Linux amd64/arm64, macOS amd64/arm64, Windows amd64) and extracts it to a per-process temporary directory at startup; the extracted binary is invoked directly as a child process. No host-level `rg` is required on the supported platforms.
+
+When the host platform falls outside the supported set, the server falls back to looking up `rg` on `PATH` and surfaces the [ENOENT wording](#spawn--runtime-errors) when neither path resolves.
+
+The upstream CLI achieves the same "no host `rg` required" property through a different mechanism (a Bun-bundled `claude` binary that re-executes itself with `argv0=rg` against an embedded `rg`); the MCP server cannot reuse that mechanism (it is not bundled into the upstream binary) and reproduces only the externally observable property, not the specific mechanism.
 
 A first-use availability test (`rg --version` returning stdout that starts with `ripgrep `) is recorded as a Known gap; the implementation may add it later if observation shows it useful for early-failure messaging.
 
@@ -291,7 +295,6 @@ These behaviours of the upstream Claude Code CLI's built-in `Grep` cannot be rep
 - **(Tier 4a) PostToolUse hooks.** The upstream CLI fires hooks after every successful Grep call; the memory-directory tracking telemetry (`tengu_memdir_accessed` / `tengu_team_mem_accessed`) and any user-configured PostToolUse hooks run in that flow. The MCP server has no in-CLI hook surface.
 - **(Tier 4a) REPL-inner native timeout.** The upstream CLI applies an additional `10 000 ms` REPL-inner wrapper timeout for tools in the `["Read", "Write", "Edit", "Glob", "Grep", "NotebookEdit", "TodoWrite", "TaskCreate", "TaskGet", "TaskList", "TaskStop", "TaskUpdate"]` set. This is independent of the ripgrep child-process timeout and applies to the REPL call mechanism only. An MCP server has no REPL-inner layer to wrap.
 - **(Tier 4a) `Fpt()` tool removal in local-agent + POSIX shell context.** The upstream CLI may *remove* `Grep` and `Glob` from the tool set under specific conditions (local-agent mode with a POSIX shell available) and substitute a hint message suggesting the agent use the shell `grep` instead. An MCP server cannot remove its own tools mid-session in this way; the tool is always present.
-- **(Tier 4a) Embedded ripgrep mode.** The upstream Bun-bundled `claude` binary re-executes itself with `argv0=rg` to invoke an embedded ripgrep. An MCP server is a standalone process and cannot re-exec a parent host binary; the server relies on `rg` being on `PATH` in the hosting environment.
 
 ## Source notes
 

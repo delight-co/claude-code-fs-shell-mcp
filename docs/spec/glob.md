@@ -34,17 +34,17 @@ The schema mirrors the upstream `Glob` tool's two-parameter shape exactly. Unkno
 
 | Tier | What it covers | Status in this server |
 | ---- | -------------- | --------------------- |
-| **1 — Self-contained** | ripgrep binary resolution, args assembly, output formatting, timeout, byte-exact error / notice wording, wrap cap, truncation notice. | **In scope for the initial implementation.** |
+| **1 — Self-contained** | Embedded ripgrep binary extraction at startup, args assembly, output formatting, timeout, byte-exact error / notice wording, wrap cap, truncation notice. | **In scope for the initial implementation.** |
 | **2 — fs-tool integration** | (Glob does not seed the read-tracking state; not applicable.) | n/a |
 | **3 — Sibling-tool integration** | (Glob does not depend on other tool families; not applicable.) | n/a |
-| **4a — Architecturally infeasible** | PostToolUse hooks (memory-dir tracking after a Glob call), REPL-inner native timeout, `Fpt()` removal-when-shell-available behaviour, embedded-ripgrep re-exec. | **Not reproducible** (Known limitations) |
+| **4a — Architecturally infeasible** | PostToolUse hooks (memory-dir tracking after a Glob call), REPL-inner native timeout, `Fpt()` removal-when-shell-available behaviour. | **Not reproducible** (Known limitations) |
 | **4b — Implementable but deferred** | Orphaned-worktree exclusions, deny-rule path → `--glob !` conversion, pattern-side UNC / `/net` automount defensive ask, model-conditional `prompt()`, first-use availability check, REPL surface's 25 000-cap override, absolute-pattern silent search-root override reconciliation. | **Deferred** (Known gaps) |
 
 ## Semantics
 
 ### Search engine
 
-The engine is **ripgrep** (`rg`) in `--files` mode. The MCP server expects `rg` on the hosting environment's `PATH`. Shared with [`Grep`](./grep.md) — same binary resolver, same child-process driver, same first-use availability check (recorded as Known gap; the implementation may add it later).
+The engine is **ripgrep** (`rg`) in `--files` mode. The server ships an embedded `rg` binary and extracts it to a per-process temporary directory at startup; see [`Grep`'s Search engine](./grep.md#search-engine) for the supported platforms, the PATH-fallback behaviour, and the comparison with the upstream's bundling mechanism. Shared with [`Grep`](./grep.md) — same binary resolver, same child-process driver, same first-use availability check (recorded as Known gap; the implementation may add it later).
 
 ### Default args (always passed)
 
@@ -222,7 +222,6 @@ These behaviours of the upstream Claude Code CLI's built-in `Glob` cannot be rep
 - **(Tier 4a) PostToolUse hooks.** Memory-directory tracking telemetry (`tengu_memdir_accessed` / `tengu_team_mem_accessed`) and any user-configured PostToolUse hooks run after every successful Glob call upstream; no MCP-level surface.
 - **(Tier 4a) REPL-inner native timeout.** The upstream applies an additional `10 000 ms` REPL-inner wrapper timeout. An MCP server has no REPL layer to wrap.
 - **(Tier 4a) `Fpt()` tool removal in local-agent + POSIX shell context.** Upstream may remove Glob from the tool set under specific conditions and substitute a hint ("find files with `find` via the Bash tool instead"). An MCP server cannot remove its own tools mid-session; Glob is always present.
-- **(Tier 4a) Embedded ripgrep mode.** The upstream's Bun-bundled binary re-executes itself with `argv0=rg`. An MCP server is a standalone process and cannot re-exec a parent host binary; the server relies on `rg` being on `PATH`.
 
 ## Source notes
 
