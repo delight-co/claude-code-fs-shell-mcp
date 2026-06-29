@@ -46,10 +46,10 @@ The Claude Code CLI does not publish a JSON schema directly. The parameter names
 
 | Tier | What it covers | Status in this server |
 | ---- | -------------- | --------------------- |
-| **1 — Self-contained** | Path validation, line cap and pagination, line formatting (`cat -n` style), file-type dispatch (text / image / PDF / notebook), notice emission (empty / past-offset / truncation). | **In scope for the initial implementation.** |
+| **1 — Self-contained** | Path validation, line cap and pagination, line formatting (`cat -n` style), file-type dispatch (text / image / PDF / notebook), notice emission (empty / past-offset / truncation), PDF parts-mode rendering (per-page JPEG via `pdftoppm`, with an image cap matching the upstream rendering pipeline). | **In scope for the initial implementation.** |
 | **2 — fs-tool integration** | Seeding the per-session read-tracking state that [`Write`](./write.md) and [`Edit`](./edit.md) consult for the read-before-overwrite / read-before-edit contracts. | **In scope for the initial implementation.** |
 | **3 — Sibling-tool integration** | (Read does not depend on other tool families; not applicable.) | n/a |
-| **4a — Architecturally infeasible** | Client-tracking out-of-band system reminders that depend on the upstream CLI observing filesystem state outside any single tool call. | **Not reproducible**; recorded in Known limitations so callers know the gap. |
+| **4a — Architecturally infeasible** | Client-tracking out-of-band system reminders that depend on the upstream CLI observing filesystem state outside any single tool call; whole-PDF transport via the upstream `document` content block injected as an `isMeta` user message (CLI-internal message construction, no MCP-level surface). | **Not reproducible**; recorded in Known limitations so callers know the gaps. |
 | **4b — Implementable but deferred** | (Known gaps below are value-pinning or observation-pending, not deferred-implementable behaviours; no Tier 4b items.) | n/a |
 
 ## Semantics
@@ -91,10 +91,29 @@ Returned as **visual content**, not as raw bytes or base64 in a text body. Concr
 
 #### PDFs
 
-- PDFs are returned in slices addressed by the `pages` parameter (for example `"1-5"` or `"3"`).
-- A single call returns at most **20 pages**.
-- For PDFs longer than **10 pages**, `pages` is required; calling without it on a long PDF is an error.
-- The exact transport of PDF content to the model (whether each page is rendered to an image content block, whether the model receives an extracted text representation, or some combination) depends on the upstream Claude Code CLI's internal handling, which is not fully described in public documentation. The implementation will match observed behaviour for the pinned CLI version; see [Known gaps](#known-gaps).
+The upstream Claude Code CLI dispatches PDF reads to one of two transport modes depending on whether `pages` is supplied. **This MCP server reproduces the parts-mode transport; the pdf-mode transport is not reachable from an MCP server and is recorded under [Known limitations](#known-limitations).**
+
+**parts mode** (= upstream tool when `pages` is supplied, or when the model is `claude-3-haiku-*`):
+
+- Each requested page is rasterised to a **JPEG at 100 DPI** using **`pdftoppm`** (= poppler-utils). The image bytes are then size-capped to match the upstream rendering pipeline (= resize to at most 2000 × 2000 / 5 MB base64, with further byte-budget compression beyond that).
+- Each page becomes one `image` content block (`mimeType: "image/jpeg"`) in the MCP tool result.
+- The tool result text body is `PDF pages extracted: <count> page(s) from <file_path> (<size>)`.
+
+**pdf mode** (= upstream tool when `pages` is omitted, model is not `claude-3-haiku-*`, file size ≤ 20 MB, and the PDF has ≤ 10 pages):
+
+- The whole PDF is base64-encoded and sent as an Anthropic API `document` content block (`media_type: "application/pdf"`), attached to a synthetic `user` role message marked `isMeta: true` that the upstream CLI inserts **before** the tool result.
+- The model parses the PDF natively (text + image fidelity preserved) instead of receiving rasterised pages.
+- **Not reproducible from an MCP server**: the `isMeta` user-message injection happens inside the upstream CLI's message-construction code path, with no MCP-level surface for a server to drive. Returning PDF bytes via MCP `EmbeddedResource` with `mimeType: "application/pdf"` does not substitute — the client persists the blob to disk and surfaces only a placeholder text (`Binary content saved to <path>`) to the model. See [Known limitations](#known-limitations).
+
+##### `pages` parameter syntax
+
+The `pages` parameter accepts a single range (no comma-separated lists):
+
+- `"3"` — a single page.
+- `"1-5"` — a closed range, both endpoints 1-indexed.
+- `"5-"` — an open range from page 5 to end-of-document. Always rejected at validation time because the implied span exceeds the 20-page cap; closed ranges of exactly 20 pages (e.g. `"5-24"`) are accepted.
+
+Pages are 1-indexed. The cap is **20 pages per request** and a PDF longer than **10 pages** requires a `pages` value (this MCP server enforces the same threshold because the pdf-mode fallback is unreachable).
 
 #### Jupyter notebooks (`.ipynb`)
 
@@ -122,15 +141,93 @@ These are returned as text content in the MCP response (the `image` branch above
 
 The following conditions are surfaced as MCP tool errors rather than as content. The error envelope distinguishes the case so the caller can react.
 
+Generic (not PDF-specific):
+
 - Path is relative (must be absolute).
 - File does not exist.
 - Path resolves to a directory.
 - Permission denied at the OS level.
 - I/O failure while reading.
-- PDF longer than 10 pages called without a `pages` parameter.
 - Read window (after `offset`/`limit`) still exceeds the per-tool token budget.
 
-Each error message includes the requested path and, where relevant, the offending parameter so the model can correct the call.
+Each generic error message includes the requested path and, where relevant, the offending parameter so the model can correct the call.
+
+#### PDF-specific errors (byte-exact wording where possible)
+
+The wording below matches the upstream Claude Code CLI's `Read` tool. Server-side error wording in this MCP server reproduces these strings verbatim where it can, and adapts the few model-name-gated wordings: the upstream gates one error on the active model being `claude-3-haiku-*` (= "Reading full PDFs is not supported with this model"), but this MCP server has no model-name visibility, so the gate is replaced with an unconditional "`pages` parameter required" condition.
+
+**Pre-flight (validateInput)**:
+
+- **Invalid pages syntax**:
+  ```
+  Invalid pages parameter: "<pages>". Use formats like "1-5", "3", or "10-20". Pages are 1-indexed.
+  ```
+- **Page span exceeds 20**:
+  ```
+  Page range "<pages>" exceeds maximum of 20 pages per request. Please use a smaller range.
+  ```
+
+**Dispatch (PDFs without `pages`)**:
+
+- **Too many pages** (= upstream when pdfinfo reports `> 10` pages):
+  ```
+  This PDF has <N> pages, which is too many to read at once. Use the pages parameter to read specific page ranges (e.g., pages: "1-5"). Maximum 20 pages per request.
+  ```
+- **Whole-PDF mode unavailable** (= upstream "model not supported" wording, adapted because this MCP server is sandbox-agnostic and has no model-name visibility; `pages` is always required for PDFs that would otherwise enter pdf-mode):
+  ```
+  Reading full PDFs is not supported by this MCP server. Use the pages parameter to read specific page ranges (e.g., pages: "1-5", maximum 20 pages per request).
+  ```
+
+**parts mode (`pdftoppm` wrapper)**:
+
+- **`pdftoppm` missing**:
+  ```
+  pdftoppm is not installed. Install poppler-utils (e.g. `brew install poppler` or `apt-get install poppler-utils`) to enable PDF page rendering.
+  ```
+- **Page out of range** (= upstream when `pdftoppm` stderr reports the requested last page exceeds the PDF length):
+  ```
+  Requested <range-or-page> is outside the document (PDF has <S> page(s)). Use a range within 1-<S>, maximum 20 pages per request (e.g. pages: "1-<min(S,20)>").
+  ```
+- **Password-protected**:
+  ```
+  PDF is password-protected. Please provide an unprotected version.
+  ```
+- **Corrupted PDF**:
+  ```
+  PDF file is corrupted or invalid.
+  ```
+- **PDF render I/O / permission error** (= upstream when `pdftoppm` stderr starts with `I/O Error:` or `Permission Error:`):
+  ```
+  Could not render PDF: <stderr-first-line>
+  ```
+- **Generic `pdftoppm` failure**:
+  ```
+  pdftoppm failed: <stderr>
+  ```
+- **No output produced** (= `pdftoppm` exited cleanly but produced zero `.jpg` files):
+  ```
+  pdftoppm produced no output pages. The PDF may be invalid.
+  ```
+
+**File-state preconditions**:
+
+- **PDF too large for parts mode** (= file size exceeds the upstream parts-mode cap of 100 MB):
+  ```
+  PDF file exceeds maximum allowed size for text extraction (<size>).
+  ```
+  (`text extraction` is the upstream wording; this MCP server preserves it verbatim even though the implementation does not perform text extraction.)
+- **Empty PDF file**:
+  ```
+  PDF file is empty: <file_path>
+  ```
+- **Not a regular file** (= e.g. symlink target, device file):
+  ```
+  Path is not a regular file: <file_path>
+  ```
+
+`<file_path>`, `<pages>`, `<N>`, `<S>`, `<size>`, `<range-or-page>`, `<stderr>` are runtime substitutions.
+
+The upstream tool also pins error wordings specific to the pdf-mode (whole-PDF) transport (= `PDF file exceeds maximum allowed size of <size>.`, `File is not a valid PDF (missing %PDF- header): <file_path>`, the model-not-supported variant). These are not reproduced here because the corresponding code path is unreachable in this MCP server (see [Known limitations](#known-limitations)).
 
 ## Edge cases and constraints
 
@@ -153,7 +250,6 @@ Each error message includes the requested path and, where relevant, the offendin
 
 These are gaps the implementation pull request will close, either by choosing a concrete behaviour or by reporting observed behaviour against the pinned CLI version.
 
-- **PDF transport details.** The mechanism by which the upstream tool conveys PDF page content to the model — whether each page is rendered to an image content block, whether an extracted text representation is included, or some combination — is not described in detail in public documentation. The implementation will match the observed behaviour for the pinned CLI version and document the chosen approach here at that point.
 - **Long-line truncation cap.** The exact character cap at which an individual line is truncated is not published. The implementation will pick a value matching observed behaviour and document it.
 - **Error message string formats.** The upstream documentation specifies which conditions are errors but not the exact wording. The implementation will choose a stable wording that distinguishes the cases listed in [Errors the server returns](#errors-the-server-returns) and document the formats here.
 
@@ -162,6 +258,8 @@ These are gaps the implementation pull request will close, either by choosing a 
 The following behaviours of the upstream Claude Code CLI's built-in `Read` cannot be reproduced by an MCP server interposed between the CLI and the filesystem. They are recorded here so callers know which built-in behaviours are not available through this server.
 
 - **(Tier 4a) Out-of-band system reminders that depend on the client tracking external state.** The upstream CLI emits notices for several conditions that the CLI itself observes outside of any single tool call — for example, "the file was modified by the user or a linter since you last read it", "the user opened this file in their IDE", and the guidance pushed at the model when a turn's accumulated reads exceed an internal budget. Reproducing these requires the CLI to inject text into the model's context as a side effect of file-system state. There is no MCP-level mechanism for our server to drive that injection: the upstream CLI is closed and proprietary, and we cannot modify it to accept out-of-band reminders from this server. Making our server stateful or adding file watchers does not change this — the missing piece is the client-side hook, not the server-side observation. The agent therefore loses these client-tracking notices when its filesystem operations are routed through this server.
+
+- **(Tier 4a) Whole-PDF transport via the upstream `document` content block.** When the caller omits the `pages` parameter on a PDF that fits the upstream pdf-mode constraints (file size ≤ 20 MB, page count ≤ 10, model is not `claude-3-haiku-*`), the upstream Claude Code CLI reads the entire PDF, base64-encodes it, and injects it as an Anthropic API `document` content block on a synthetic `user` role message marked `isMeta: true`, attached to the model's context *before* the tool result. The model parses the PDF natively (text + image fidelity preserved). An MCP server cannot drive this injection: the `isMeta` user-message construction is internal to the CLI, with no MCP-level surface to express "attach this content to the next assistant turn." Returning the same PDF bytes through MCP as an `EmbeddedResource` with `mimeType: "application/pdf"` does not substitute — the client persists the blob to disk and surfaces only a placeholder text (`Binary content saved to <path>`) to the model. Callers therefore must use the `pages` parameter (parts mode) to read PDFs through this server; the upstream pdf-mode fidelity is unavailable.
 
 ## Source notes
 
