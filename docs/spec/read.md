@@ -40,6 +40,18 @@ The tool is the canonical entry point for an agent to ground itself in a file be
 
 The Claude Code CLI does not publish a JSON schema directly. The parameter names, types, and required/optional markers above mirror the wording the model sees in the prompt-level descriptions and are stable across the captured CLI versions.
 
+## Capability boundaries
+
+`Read` tool functionality falls into four capability tiers in this MCP server context. The Known gaps and Known limitations sections below use this taxonomy when describing each behaviour's status.
+
+| Tier | What it covers | Status in this server |
+| ---- | -------------- | --------------------- |
+| **1 — Self-contained** | Path validation, line cap and pagination, line formatting (`cat -n` style), file-type dispatch (text / image / PDF / notebook), notice emission (empty / past-offset / truncation). | **In scope for the initial implementation.** |
+| **2 — fs-tool integration** | Seeding the per-session read-tracking state that [`Write`](./write.md) and [`Edit`](./edit.md) consult for the read-before-overwrite / read-before-edit contracts. | **In scope for the initial implementation.** |
+| **3 — Sibling-tool integration** | (Read does not depend on other tool families; not applicable.) | n/a |
+| **4a — Architecturally infeasible** | Client-tracking out-of-band system reminders that depend on the upstream CLI observing filesystem state outside any single tool call. | **Not reproducible**; recorded in Known limitations so callers know the gap. |
+| **4b — Implementable but deferred** | (Known gaps below are value-pinning or observation-pending, not deferred-implementable behaviours; no Tier 4b items.) | n/a |
+
 ## Semantics
 
 ### Path handling
@@ -149,7 +161,7 @@ These are gaps the implementation pull request will close, either by choosing a 
 
 The following behaviours of the upstream Claude Code CLI's built-in `Read` cannot be reproduced by an MCP server interposed between the CLI and the filesystem. They are recorded here so callers know which built-in behaviours are not available through this server.
 
-- **Out-of-band system reminders that depend on the client tracking external state.** The upstream CLI emits notices for several conditions that the CLI itself observes outside of any single tool call — for example, "the file was modified by the user or a linter since you last read it", "the user opened this file in their IDE", and the guidance pushed at the model when a turn's accumulated reads exceed an internal budget. Reproducing these requires the CLI to inject text into the model's context as a side effect of file-system state. There is no MCP-level mechanism for our server to drive that injection: the upstream CLI is closed and proprietary, and we cannot modify it to accept out-of-band reminders from this server. Making our server stateful or adding file watchers does not change this — the missing piece is the client-side hook, not the server-side observation. The agent therefore loses these client-tracking notices when its filesystem operations are routed through this server.
+- **(Tier 4a) Out-of-band system reminders that depend on the client tracking external state.** The upstream CLI emits notices for several conditions that the CLI itself observes outside of any single tool call — for example, "the file was modified by the user or a linter since you last read it", "the user opened this file in their IDE", and the guidance pushed at the model when a turn's accumulated reads exceed an internal budget. Reproducing these requires the CLI to inject text into the model's context as a side effect of file-system state. There is no MCP-level mechanism for our server to drive that injection: the upstream CLI is closed and proprietary, and we cannot modify it to accept out-of-band reminders from this server. Making our server stateful or adding file watchers does not change this — the missing piece is the client-side hook, not the server-side observation. The agent therefore loses these client-tracking notices when its filesystem operations are routed through this server.
 
 ## Source notes
 

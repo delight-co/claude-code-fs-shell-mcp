@@ -28,6 +28,18 @@ Create a new file with given contents, or overwrite an existing file with given 
 
 The upstream tool does not publish a JSON schema; the parameter names above match the names the model sees in the prompt-level descriptions and are stable across the captured CLI versions.
 
+## Capability boundaries
+
+`Write` tool functionality falls into four capability tiers in this MCP server context. The Known gaps and Known limitations sections below use this taxonomy when describing each behaviour's status.
+
+| Tier | What it covers | Status in this server |
+| ---- | -------------- | --------------------- |
+| **1 — Self-contained** | Path validation, atomic temp-file-plus-rename write with non-atomic fallback, symlink safety, post-write size verification, per-path mutex, byte-exact error wording. | **In scope for the initial implementation.** |
+| **2 — fs-tool integration** | Read-before-overwrite + modified-since-read contracts via the per-session read-tracking state seeded by [`Read`](./read.md) (and by [`Bash`](./bash.md) read-equivalent shell commands once that tool is in place). | **In scope for the initial implementation.** |
+| **3 — Sibling-tool integration** | (Write does not depend on other tool families; not applicable.) | n/a |
+| **4a — Architecturally infeasible** | Behaviours that depend on internal CLI state or in-process hooks not reachable through MCP: session-resume read-tracking persistence, graceful session termination, PostToolUse hook re-sync, background-session worktree isolation, experiment-flag escape hatches. | **Not reproducible**; recorded in Known limitations. |
+| **4b — Implementable but deferred** | Personal- / team-memory secret scanning (the MCP server could maintain a memory-directory model and run the scan, but does not in the initial milestone). | **Deferred**; recorded in Known limitations. |
+
 ## Semantics
 
 ### Path handling
@@ -220,17 +232,17 @@ file_path must be an absolute path, not relative: <file_path>
 
 The following behaviours of the upstream Claude Code CLI's built-in `Write` cannot be reproduced by an MCP server interposed between the CLI and the filesystem, and are recorded here so callers know which built-in behaviours are not available through this server.
 
-- **Read-before-overwrite tracking across resumed conversations.** The upstream Claude Code CLI does not persist its MCP session id across CLI process lifetimes. Resuming a conversation starts a new CLI process which initialises a fresh MCP session with a new session id. This server's read-tracking state is keyed by MCP session id, so previously-read files appear unread to the server after a resume, and a subsequent write is refused until the file is read again in the new session.
+- **(Tier 4a) Read-before-overwrite tracking across resumed conversations.** The upstream Claude Code CLI does not persist its MCP session id across CLI process lifetimes. Resuming a conversation starts a new CLI process which initialises a fresh MCP session with a new session id. This server's read-tracking state is keyed by MCP session id, so previously-read files appear unread to the server after a resume, and a subsequent write is refused until the file is read again in the new session.
 
-- **No graceful session termination from the upstream CLI.** The upstream Claude Code CLI does not send the MCP `DELETE` request when it exits. The server therefore relies on transport-disconnect detection to clean up per-session state. Servers running behind load balancers or proxies that hold the underlying connection open after the client is gone may observe state lingering until their own idle timeouts fire.
+- **(Tier 4a) No graceful session termination from the upstream CLI.** The upstream Claude Code CLI does not send the MCP `DELETE` request when it exits. The server therefore relies on transport-disconnect detection to clean up per-session state. Servers running behind load balancers or proxies that hold the underlying connection open after the client is gone may observe state lingering until their own idle timeouts fire.
 
-- **PostToolUse hook re-sync.** The upstream CLI runs PostToolUse hooks (for example, a formatter) after every successful write, then re-reads the file if the hook bumped the `mtime` and seeds its read-tracking state with the post-hook content. This is an in-CLI feature with no MCP-level surface. Callers running formatters or other automatic rewriters as PostToolUse hooks need to issue an explicit `Read` after such hooks fire, before the next `Write` against the same path.
+- **(Tier 4a) PostToolUse hook re-sync.** The upstream CLI runs PostToolUse hooks (for example, a formatter) after every successful write, then re-reads the file if the hook bumped the `mtime` and seeds its read-tracking state with the post-hook content. This is an in-CLI feature with no MCP-level surface. Callers running formatters or other automatic rewriters as PostToolUse hooks need to issue an explicit `Read` after such hooks fire, before the next `Write` against the same path.
 
-- **Background-session worktree isolation.** The upstream CLI maintains an isolation invariant that prevents a background session from writing to files that belong to a different worktree, and emits a tool error when a write would cross the boundary. The MCP server has no concept of multiple worktrees within a session and does not enforce this isolation.
+- **(Tier 4a) Background-session worktree isolation.** The upstream CLI maintains an isolation invariant that prevents a background session from writing to files that belong to a different worktree, and emits a tool error when a write would cross the boundary. The MCP server has no concept of multiple worktrees within a session and does not enforce this isolation.
 
-- **Personal-/team-memory secret scanning.** The upstream CLI runs a secret-scanning step when writing into directories the CLI treats as "memory" (personal-memory or team-memory paths). The MCP server has no notion of these CLI-internal directories and does not run the equivalent scan. Callers who need to enforce secret-scanning on writes should layer it externally.
+- **(Tier 4b) Personal-/team-memory secret scanning.** The upstream CLI runs a secret-scanning step when writing into directories the CLI treats as "memory" (personal-memory or team-memory paths). The MCP server has no notion of these CLI-internal directories and does not run the equivalent scan. Callers who need to enforce secret-scanning on writes should layer it externally.
 
-- **Experiment-flag escape hatches.** The upstream CLI exposes experiment flags that, when enabled, bypass the read-before-overwrite and modified-since-read guards. The MCP server intentionally does not implement these escape hatches: the guards exist to protect agents from clobbering concurrent edits, and an MCP-level bypass would undermine that contract for every consumer of the server.
+- **(Tier 4a) Experiment-flag escape hatches.** The upstream CLI exposes experiment flags that, when enabled, bypass the read-before-overwrite and modified-since-read guards. The MCP server intentionally does not implement these escape hatches: the guards exist to protect agents from clobbering concurrent edits, and an MCP-level bypass would undermine that contract for every consumer of the server.
 
 ## Source notes
 
