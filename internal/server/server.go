@@ -26,7 +26,14 @@ var Version = "0.0.0-dev"
 // per-session state. The Write tool family needs this for the
 // read-before-overwrite contract; the supplied registry holds that
 // state on behalf of all tools.
-func New(logger *slog.Logger, registry *ReadTrackingRegistry) (http.Handler, error) {
+//
+// rgPath is the absolute path to the ripgrep binary the Grep and Glob
+// tools should invoke. Callers obtain it from tools.ResolveRipgrep, run
+// once at startup. An empty rgPath leaves the tools to fall back to a
+// PATH lookup at handle time (and surface the ENOENT wording if that
+// fails); this is the path that unit tests take when they do not need
+// to exercise Grep or Glob.
+func New(logger *slog.Logger, registry *ReadTrackingRegistry, rgPath string) (http.Handler, error) {
 	if logger == nil {
 		return nil, errors.New("server.New: logger must not be nil")
 	}
@@ -43,8 +50,14 @@ func New(logger *slog.Logger, registry *ReadTrackingRegistry) (http.Handler, err
 	tools.RegisterWrite(mcpServer, tools.DefaultWriteConfig(), logger, registry)
 	tools.RegisterEdit(mcpServer, tools.DefaultEditConfig(), logger, registry)
 	tools.RegisterBash(mcpServer, tools.DefaultBashConfig(), logger, registry)
-	tools.RegisterGrep(mcpServer, tools.DefaultGrepConfig(), logger)
-	tools.RegisterGlob(mcpServer, tools.DefaultGlobConfig(), logger)
+
+	grepCfg := tools.DefaultGrepConfig()
+	grepCfg.RipgrepPath = rgPath
+	tools.RegisterGrep(mcpServer, grepCfg, logger)
+
+	globCfg := tools.DefaultGlobConfig()
+	globCfg.RipgrepPath = rgPath
+	tools.RegisterGlob(mcpServer, globCfg, logger)
 
 	handler := mcp.NewStreamableHTTPHandler(
 		func(*http.Request) *mcp.Server { return mcpServer },

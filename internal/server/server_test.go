@@ -30,7 +30,7 @@ func TestReadDoesNotSendStructuredContent(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	registry := server.NewReadTrackingRegistry(256, time.Minute, logger)
-	h, err := server.New(logger, registry)
+	h, err := server.New(logger, registry, "")
 	if err != nil {
 		t.Fatalf("server.New: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestReadSeedsRegistryUnderSession(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	registry := server.NewReadTrackingRegistry(256, time.Minute, logger)
 
-	h, err := server.New(logger, registry)
+	h, err := server.New(logger, registry, "")
 	if err != nil {
 		t.Fatalf("server.New: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestReadSeedsRegistryPartialRead(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	registry := server.NewReadTrackingRegistry(256, time.Minute, logger)
 
-	h, err := server.New(logger, registry)
+	h, err := server.New(logger, registry, "")
 	if err != nil {
 		t.Fatalf("server.New: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestSessionsAreIsolated(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	registry := server.NewReadTrackingRegistry(256, time.Minute, logger)
 
-	h, err := server.New(logger, registry)
+	h, err := server.New(logger, registry, "")
 	if err != nil {
 		t.Fatalf("server.New: %v", err)
 	}
