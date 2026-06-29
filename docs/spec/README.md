@@ -78,6 +78,16 @@ The upstream Claude Code CLI built-in tools return their output as unstructured 
 
 Each tool spec's `Semantics` section describes which content block kinds it emits and any media-type-specific framing (for example, images returned as `image` blocks rather than as base64 in text).
 
+## Client display limitations
+
+These are limitations of common MCP clients rather than of this server. They are documented here so callers know the gap and can adjust their expectations.
+
+### `Annotations.Audience` is not honoured
+
+The MCP specification's `Annotations.Audience` field on tool-result content blocks (`["user"]`, `["assistant"]`, or both) would let a server split a long response into a user-visible summary and a model-visible full body. Claude Code CLI v2.1.x does not honour this hint: both content blocks are rendered in the TUI and both are forwarded to the model, regardless of `Annotations.Audience`.
+
+Tracked upstream as [anthropics/claude-code#72239](https://github.com/anthropics/claude-code/issues/72239). Until the upstream client honours the hint, this server's tools render their full content into both the TUI and the model context, even on responses that would otherwise benefit from a per-block audience split.
+
 ## Refresh policy
 
 The Claude Code CLI version pinned at the top of this README is the version whose published behaviour this spec attempts to mirror. When a new CLI release introduces a relevant change to a built-in tool, the spec is refreshed in two steps:
