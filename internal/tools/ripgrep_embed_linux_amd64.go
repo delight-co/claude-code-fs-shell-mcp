@@ -1,0 +1,12 @@
+//go:build linux && amd64
+
+package tools
+
+import _ "embed"
+
+//go:embed ripgrep_binaries/rg_linux_amd64
+var embeddedRgBinary []byte
+
+const rgBinaryExt = ""
+
+func embeddedRipgrepBytes() []byte { return embeddedRgBinary }

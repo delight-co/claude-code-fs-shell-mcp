@@ -35,6 +35,10 @@ jobs:
           persist-credentials: false
 
       - if: matrix.language == 'go'
+        name: Download embedded ripgrep binaries
+        run: bash scripts/download-ripgrep.sh
+
+      - if: matrix.language == 'go'
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version-file: go.mod

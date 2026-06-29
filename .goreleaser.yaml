@@ -5,6 +5,12 @@ project_name: claude-code-fs-shell-mcp
 before:
   hooks:
     - go mod tidy
+    # Download the pinned ripgrep release archives and place the per-platform
+    # rg binaries under internal/tools/ripgrep_binaries/ so that the
+    # //go:embed directives in internal/tools/ripgrep_embed_*.go can pick
+    # them up at build time. The script verifies sha256 checksums against
+    # the values published with each upstream release.
+    - bash scripts/download-ripgrep.sh
 
 builds:
   - id: claude-code-fs-shell-mcp

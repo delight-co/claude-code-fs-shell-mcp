@@ -18,6 +18,14 @@ Requirements:
 - [`lefthook`](https://github.com/evilmartians/lefthook) (optional, for the
   pre-commit hooks).
 
+Run the initial setup once before the first build (and again whenever the pinned ripgrep version in the script is bumped):
+
+```sh
+bash scripts/download-ripgrep.sh
+```
+
+This places per-platform `rg` binaries under `internal/tools/ripgrep_binaries/` so that the `//go:embed` directives in `internal/tools/ripgrep_embed_*.go` can pick them up at build time. The downloaded binaries are gitignored. The same script runs as the first GoReleaser `before` hook so that release builds and local builds use byte-identical binaries.
+
 ```sh
 go mod download
 go build ./...

@@ -56,8 +56,16 @@ they prefer.
 ### From source
 
 ```sh
-go install github.com/delight-co/claude-code-fs-shell-mcp/cmd/claude-code-fs-shell-mcp@latest
+git clone https://github.com/delight-co/claude-code-fs-shell-mcp
+cd claude-code-fs-shell-mcp
+bash scripts/download-ripgrep.sh
+go build ./cmd/claude-code-fs-shell-mcp
 ```
+
+The `download-ripgrep.sh` step fetches the per-platform `rg` binaries that the server embeds at build time. See
+[CONTRIBUTING.md](./CONTRIBUTING.md#local-development) for the full local-development setup.
+
+> `go install github.com/delight-co/claude-code-fs-shell-mcp/cmd/claude-code-fs-shell-mcp@latest` does not work in this project because the embedded `rg` binaries are gitignored and only fetched by the setup script above. Use the [Releases page](#pre-built-binary) or the [Container image](#container-image) for ready-to-run distributions.
 
 ## Run
 

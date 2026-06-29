@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/delight-co/claude-code-fs-shell-mcp/internal/server"
+	"github.com/delight-co/claude-code-fs-shell-mcp/internal/tools"
 )
 
 const (
@@ -54,7 +55,15 @@ func run(addr string, logger *slog.Logger) error {
 		"session_ttl_seconds", int(sessionTTL.Seconds()),
 	)
 
-	handler, err := server.New(logger, registry)
+	rgPath, rgCleanup, rgErr := tools.ResolveRipgrep()
+	if rgErr != nil {
+		logger.Warn("ripgrep resolution failed; grep and glob will return ENOENT until the host provides rg", "err", rgErr)
+	} else {
+		logger.Info("ripgrep resolved", "path", rgPath)
+	}
+	defer rgCleanup()
+
+	handler, err := server.New(logger, registry, rgPath)
 	if err != nil {
 		return fmt.Errorf("build mcp handler: %w", err)
 	}

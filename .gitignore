@@ -37,3 +37,6 @@ Thumbs.db
 # Lefthook local override
 .lefthook-local.yml
 lefthook-local.yml
+
+# Embedded ripgrep binaries (downloaded by scripts/download-ripgrep.sh)
+/internal/tools/ripgrep_binaries/
