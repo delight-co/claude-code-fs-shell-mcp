@@ -113,7 +113,7 @@ func (h *readHandler) handle(_ context.Context, req *mcp.CallToolRequest, in Rea
 	}
 
 	if mtype.Is("application/pdf") {
-		return nil, nil, fmt.Errorf("PDF reading is not yet implemented: %s", clean)
+		return h.readPDF(req, clean, info, in.Pages)
 	}
 
 	family, _, _ := strings.Cut(mtype.String(), "/")

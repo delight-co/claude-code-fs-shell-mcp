@@ -195,15 +195,15 @@ func TestRead_Notebook(t *testing.T) {
 	}
 }
 
-func TestRead_PDFNotImplemented(t *testing.T) {
+func TestRead_PDFRequiresPagesParameter(t *testing.T) {
 	t.Parallel()
 	h := newTestReadHandler(DefaultReadConfig())
 	path := filepath.Join(t.TempDir(), "tiny.pdf")
 	writeTinyPDF(t, path)
 
 	_, _, err := h.handle(context.Background(), nil, ReadInput{FilePath: path})
-	if err == nil || !strings.Contains(err.Error(), "PDF reading is not yet implemented") {
-		t.Fatalf("want PDF-not-implemented error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "Reading full PDFs is not supported by this MCP server") {
+		t.Fatalf("want pages-required error, got %v", err)
 	}
 }
 
